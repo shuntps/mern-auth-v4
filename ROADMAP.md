@@ -15,19 +15,19 @@ This roadmap outlines all steps for building a production-ready MERN stack authe
 
 ### 1.1 Project Structure Setup
 
-- [ ] Create root project directory structure
-- [ ] Initialize Git repository
-- [ ] Create `.gitignore` file (root level)
-- [ ] Create initial `README.md` with project overview
-- [ ] Create `backend` folder
-- [ ] Create `frontend` folder
+- [x] Create root project directory structure
+- [x] Initialize Git repository
+- [x] Create `.gitignore` file (root level)
+- [x] Create initial `README.md` with project overview
+- [x] Create `backend` folder
+- [x] Create `frontend` folder
 
 ### 1.2 Documentation Setup
 
-- [ ] Create comprehensive README.md with setup instructions
-- [ ] Document environment variable requirements
-- [ ] Create CONTRIBUTING.md guidelines
-- [ ] Add MIT LICENSE file
+- [x] Create comprehensive README.md with setup instructions
+- [x] Document environment variable requirements
+- [x] Create CONTRIBUTING.md guidelines
+- [x] Add MIT LICENSE file
 
 ---
 
@@ -43,99 +43,99 @@ This roadmap outlines all steps for building a production-ready MERN stack authe
 
 ### 2.1 Backend Project Initialization
 
-- [ ] Navigate to `backend` folder
-- [ ] Initialize npm project (`npm init -y`)
-- [ ] Install TypeScript and core dependencies
-- [ ] Create `tsconfig.json` with strict mode
-- [ ] Setup folder structure:
-  - [ ] `/src` - main source code
-  - [ ] `/src/config` - configuration files
-  - [ ] `/src/controllers` - request handlers
-  - [ ] `/src/services` - business logic
-  - [ ] `/src/models` - MongoDB schemas
-  - [ ] `/src/routes` - API routes
-  - [ ] `/src/middleware` - custom middleware
-  - [ ] `/src/utils` - utility functions
-  - [ ] `/src/types` - TypeScript type definitions
-  - [ ] `/src/validators` - Zod schemas
-  - [ ] `/dist` - compiled output
+- [x] Navigate to `backend` folder
+- [x] Initialize npm project (`npm init -y`)
+- [x] Install TypeScript and core dependencies
+- [x] Create `tsconfig.json` with strict mode
+- [x] Setup folder structure:
+  - [x] `/src` - main source code
+  - [x] `/src/config` - configuration files
+  - [x] `/src/controllers` - request handlers
+  - [x] `/src/services` - business logic
+  - [x] `/src/models` - MongoDB schemas
+  - [x] `/src/routes` - API routes
+  - [x] `/src/middleware` - custom middleware
+  - [x] `/src/utils` - utility functions
+  - [x] `/src/types` - TypeScript type definitions
+  - [x] `/src/validators` - Zod schemas
+  - [x] `/dist` - compiled output
 
 ### 2.2 Backend Core Dependencies Installation
 
-- [ ] Install Express.js (latest)
-- [ ] Install MongoDB driver / Mongoose (latest)
-- [ ] Install TypeScript type definitions (@types/node, @types/express)
-- [ ] Install dotenv for environment variables
-- [ ] Install cors and @types/cors
-- [ ] Install helmet for security headers
-- [ ] Install compression for response compression
-- [ ] Install morgan for HTTP request logging
-- [ ] Install winston for application logging
-- [ ] Install express-async-errors for async error handling
+- [x] Install Express.js (latest)
+- [x] Install MongoDB driver / Mongoose (latest)
+- [x] Install TypeScript type definitions (@types/node, @types/express)
+- [x] Install dotenv for environment variables
+- [x] Install cors and @types/cors
+- [x] Install helmet for security headers
+- [x] Install compression for response compression
+- [x] Install morgan for HTTP request logging
+- [x] Install winston for application logging
+- [x] Install express-async-errors for async error handling (Not needed - Express 5 handles async natively)
 
 ### 2.3 Development Tools Setup
 
-- [ ] Install nodemon for development
-- [ ] Install ts-node for TypeScript execution
-- [ ] Install ESLint with TypeScript support
-- [ ] Create `.eslintrc.json` configuration
-- [ ] Install Prettier
-- [ ] Create `.prettierrc` configuration
+- [x] Install tsx for development (modern alternative to nodemon+ts-node)
+- [x] Install ESLint with TypeScript support (v9 flat config)
+- [x] Create `eslint.config.mjs` configuration
+- [x] Install Prettier
+- [x] Create `.prettierrc` configuration
 - [ ] Install Husky for Git hooks
 - [ ] Configure pre-commit hooks (lint + format)
 - [ ] Install lint-staged
-- [ ] Add npm scripts: `dev`, `build`, `start`, `lint`, `format`
+- [x] Add npm scripts: `dev`, `build`, `start`, `lint`, `format`, `format:check`
 
 ### 2.4 Environment Configuration
 
-- [ ] Create `.env.example` file
-- [ ] Create `.env` file (git-ignored)
-- [ ] Setup config loader in `/src/config/env.ts`
-- [ ] Define environment variables:
-  - [ ] NODE_ENV
-  - [ ] PORT
-  - [ ] MONGODB_URI
-  - [ ] REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
-  - [ ] JWT_ACCESS_SECRET, JWT_REFRESH_SECRET
-  - [ ] JWT_ACCESS_EXPIRES_IN, JWT_REFRESH_EXPIRES_IN
-  - [ ] COOKIE_SECRET
-  - [ ] GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
-  - [ ] FRONTEND_URL
-  - [ ] SMTP configuration for emails
+- [x] Create `.env.example` file
+- [x] Create `.env` file (git-ignored)
+- [x] Setup config loader in `/src/config/env.ts`
+- [x] Define environment variables:
+  - [x] NODE_ENV
+  - [x] PORT
+  - [x] MONGODB_URI
+  - [x] REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
+  - [x] JWT_ACCESS_SECRET, JWT_REFRESH_SECRET
+  - [x] JWT_ACCESS_EXPIRES_IN, JWT_REFRESH_EXPIRES_IN
+  - [x] COOKIE_SECRET
+  - [x] GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+  - [x] FRONTEND_URL
+  - [x] SMTP configuration for emails
 
 ### 2.5 Database Setup - MongoDB
 
-- [ ] Install mongoose (latest)
-- [ ] Create MongoDB connection utility in `/src/config/database.ts`
-- [ ] Implement connection pooling
-- [ ] Add connection error handling
-- [ ] Add graceful shutdown handling
-- [ ] Test MongoDB connection
+- [x] Install mongoose (latest)
+- [x] Create MongoDB connection utility in `/src/config/database.ts`
+- [x] Implement connection pooling
+- [x] Add connection error handling
+- [x] Add graceful shutdown handling
+- [x] Test MongoDB connection
 
 ### 2.6 Database Setup - Redis
 
-- [ ] Install ioredis (latest)
-- [ ] Create Redis client in `/src/config/redis.ts`
-- [ ] Implement Redis connection with retry logic
-- [ ] Add Redis error handling
-- [ ] Add graceful shutdown handling
-- [ ] Test Redis connection
-- [ ] Create Redis utility functions for common operations
+- [x] Install ioredis (latest)
+- [x] Create Redis client in `/src/config/redis.ts`
+- [x] Implement Redis connection with retry logic
+- [x] Add Redis error handling
+- [x] Add graceful shutdown handling
+- [x] Test Redis connection
+- [x] Create Redis utility functions for common operations
 
 ### 2.7 Core Server Setup
 
-- [ ] Create main `server.ts` entry point
-- [ ] Initialize Express app
-- [ ] Apply security middleware (helmet, cors)
-- [ ] Apply body parsers (json, urlencoded)
-- [ ] Apply compression middleware
-- [ ] Apply Morgan logging
-- [ ] Setup global error handler
-- [ ] Setup 404 handler
-- [ ] Connect to MongoDB
-- [ ] Connect to Redis
-- [ ] Start HTTP server
-- [ ] Implement graceful shutdown
+- [x] Create main `index.ts` entry point
+- [x] Initialize Express app
+- [x] Apply security middleware (helmet, cors)
+- [x] Apply body parsers (json, urlencoded)
+- [x] Apply compression middleware
+- [x] Apply Morgan logging
+- [x] Setup global error handler
+- [x] Setup 404 handler
+- [x] Connect to MongoDB
+- [x] Connect to Redis
+- [x] Start HTTP server
+- [x] Implement graceful shutdown
+- [x] Add health check endpoint
 
 ### 2.8 User Model & Schema
 
