@@ -5,6 +5,7 @@ A modern, production-ready MERN stack authentication system built with TypeScrip
 ## 🚀 Features
 
 ### Authentication & Authorization
+
 - ✅ User registration with email verification
 - ✅ Secure login/logout with JWT tokens
 - ✅ Refresh token rotation with Redis sessions
@@ -16,6 +17,7 @@ A modern, production-ready MERN stack authentication system built with TypeScrip
 - ✅ Session management (view active sessions, revoke sessions)
 
 ### Security
+
 - 🔒 HTTP-only secure cookies
 - 🔒 CSRF protection
 - 🔒 Rate limiting with Redis
@@ -26,6 +28,7 @@ A modern, production-ready MERN stack authentication system built with TypeScrip
 - 🔒 Account ban/unban functionality
 
 ### User Management
+
 - 👤 User profiles with avatar upload
 - 👤 Profile editing (name, email, avatar)
 - 👤 Account deletion
@@ -33,6 +36,7 @@ A modern, production-ready MERN stack authentication system built with TypeScrip
 - 👤 Last login and activity timestamps
 
 ### Admin Features
+
 - 🛡️ User management dashboard
 - 🛡️ Role assignment (user, admin, super-admin)
 - 🛡️ Ban/unban users
@@ -41,6 +45,7 @@ A modern, production-ready MERN stack authentication system built with TypeScrip
 - 🛡️ Pagination and sorting
 
 ### Developer Experience
+
 - 📦 TypeScript with strict mode (no `any` types)
 - 📦 ESLint + Prettier + Husky
 - 📦 Modular architecture (controllers/services/routes)
@@ -51,6 +56,7 @@ A modern, production-ready MERN stack authentication system built with TypeScrip
 - 📦 Zero lint errors enforced
 
 ### Frontend Features
+
 - 🎨 React 19 + Vite 7 + TypeScript
 - 🎨 TailwindCSS 4 with dark mode
 - 🎨 Zustand state management
@@ -66,6 +72,7 @@ A modern, production-ready MERN stack authentication system built with TypeScrip
 ## 🛠️ Tech Stack
 
 ### Backend
+
 - **Runtime**: Node.js v20+
 - **Framework**: Express.js v5.2+
 - **Language**: TypeScript v5.7+
@@ -82,6 +89,7 @@ A modern, production-ready MERN stack authentication system built with TypeScrip
 - **API Docs**: Swagger/OpenAPI
 
 ### Frontend
+
 - **Framework**: React v19.2+
 - **Build Tool**: Vite v7.2+
 - **Language**: TypeScript v5.7+
@@ -95,6 +103,7 @@ A modern, production-ready MERN stack authentication system built with TypeScrip
 - **i18n**: i18next v24.0+ with react-i18next
 
 ### DevOps
+
 - **Containerization**: Docker + Docker Compose
 - **Process Manager**: PM2
 - **Code Quality**: ESLint, Prettier, Husky, lint-staged
@@ -245,6 +254,7 @@ npm run format     # Format with Prettier
 ## 📚 API Documentation
 
 Once the backend is running, visit:
+
 - Swagger UI: `http://localhost:5000/api-docs`
 
 ## 🎯 User Roles
@@ -273,6 +283,7 @@ MIT License - see [LICENSE](LICENSE) file for details
 ## 👨‍💻 Developer
 
 **Shunt**
+
 - GitHub: [@shuntps](https://github.com/shuntps)
 - Repository: [mern-auth-v4](https://github.com/shuntps/mern-auth-v4)
 
@@ -283,6 +294,7 @@ Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for de
 ## 📖 Documentation
 
 For detailed development instructions, see:
+
 - [ROADMAP.md](ROADMAP.md) - Development roadmap with milestones
 - [.github/copilot-instructions.md](.github/copilot-instructions.md) - AI agent guidelines
 - [docs/MERN_AUTH_V4-PROJECT.md](docs/MERN_AUTH_V4-PROJECT.md) - Project specifications
