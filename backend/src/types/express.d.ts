@@ -1,4 +1,5 @@
 import 'express';
+import { type UserRole } from '@custom-types/user.types';
 
 declare global {
   namespace Express {
@@ -7,6 +8,8 @@ declare global {
       auth?: {
         userId: string;
         role?: string;
+        roleName?: UserRole;
+        permissions?: string[];
         sessionId?: string;
         accessToken?: string;
         refreshToken?: string;

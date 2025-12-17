@@ -478,12 +478,12 @@ This roadmap outlines all steps for building a production-ready MERN stack authe
 
 ### 2.24 Middleware - Authorization & RBAC
 
-- [ ] Create `authorize.middleware.ts`
-- [ ] Implement `authorize(...roles)` middleware:
-  - [ ] Check if user has required role
-  - [ ] Return 403 if unauthorized
-- [ ] Create permission-based authorization helpers
-- [ ] Define role hierarchy: user < admin < super-admin
+- [x] Create `authorize.middleware.ts`
+- [x] Implement `authorize(...roles)` middleware:
+  - [x] Check if user has required role
+  - [x] Return 403 if unauthorized
+- [x] Create permission-based authorization helpers
+- [x] Define role hierarchy: user < admin < super-admin
 
 ### 2.25 Middleware - Rate Limiting
 
