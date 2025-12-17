@@ -7,6 +7,7 @@ import {
 import { issueCsrfToken, verifyCsrfToken } from '@middleware/csrf.middleware';
 import { validate } from '@middleware/validate.middleware';
 import { authenticateRefreshToken } from '@middleware/auth.middleware';
+import { authorize } from '@middleware/authorize.middleware';
 import passport, { isGoogleOAuthEnabled } from '@config/oauth';
 import { env } from '@config/env';
 import { type AuthenticateOptions } from 'passport';
@@ -103,6 +104,7 @@ router.post(
   authLimiter,
   verifyCsrfToken,
   authenticateRefreshToken,
+  authorize(),
   authController.enableTwoFactor
 );
 
@@ -111,6 +113,7 @@ router.post(
   authLimiter,
   verifyCsrfToken,
   authenticateRefreshToken,
+  authorize(),
   validate(twoFactorVerifySchema),
   authController.verifyTwoFactor
 );
@@ -120,6 +123,7 @@ router.post(
   authLimiter,
   verifyCsrfToken,
   authenticateRefreshToken,
+  authorize(),
   validate(twoFactorDisableSchema),
   authController.disableTwoFactor
 );
@@ -129,6 +133,7 @@ router.get(
   authLimiter,
   verifyCsrfToken,
   authenticateRefreshToken,
+  authorize(),
   authController.getIpHistory
 );
 

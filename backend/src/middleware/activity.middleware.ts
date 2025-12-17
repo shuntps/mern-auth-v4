@@ -1,6 +1,7 @@
 import { type NextFunction, type Request, type Response } from 'express';
 import User from '@models/user.model';
 import { verifyAccessToken } from '@services/token.service';
+import { getClientIp } from '@utils/request';
 
 const ACTIVITY_UPDATE_INTERVAL_MS = 60_000;
 
@@ -52,7 +53,7 @@ export const touchLastActivity = async (
     const lastActivity = user.lastActivity ? user.lastActivity.getTime() : 0;
     const shouldUpdateTimestamp = now.getTime() - lastActivity >= ACTIVITY_UPDATE_INTERVAL_MS;
 
-    const ip = req.ip;
+    const ip = getClientIp(req);
     const ipHistory = user.ipHistory;
     const shouldUpdateIp = ip ? !ipHistory.includes(ip) : false;
 

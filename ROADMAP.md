@@ -484,17 +484,18 @@ This roadmap outlines all steps for building a production-ready MERN stack authe
   - [x] Return 403 if unauthorized
 - [x] Create permission-based authorization helpers
 - [x] Define role hierarchy: user < admin < super-admin
+- [x] Wire authorization middleware on protected routes (2FA flows, IP history)
 
 ### 2.25 Middleware - Rate Limiting
 
-- [ ] Create `rateLimiter.middleware.ts`
-- [ ] Configure Redis store for rate limiting
-- [ ] Create rate limiters:
-  - [ ] General API: 100 requests per 15 minutes
-  - [ ] Auth endpoints: 5 requests per 15 minutes
-  - [ ] Login: 5 attempts per 15 minutes
-  - [ ] Password reset: 3 attempts per hour
-- [ ] Apply rate limiters to appropriate routes
+- [x] Create `rateLimiter.middleware.ts`
+- [x] Configure Redis store for rate limiting
+- [x] Create rate limiters:
+  - [x] General API: 100 requests per 15 minutes
+  - [x] Auth endpoints: 5 requests per 15 minutes
+  - [x] Login: 5 attempts per 15 minutes
+  - [x] Password reset: 3 attempts per hour
+- [x] Apply rate limiters to appropriate routes
 
 ### 2.26 Middleware - CSRF Protection
 
@@ -506,30 +507,30 @@ This roadmap outlines all steps for building a production-ready MERN stack authe
 
 ### 2.27 Middleware - Security Headers & CSP
 
-- [ ] Configure helmet middleware with strict policies
-- [ ] Set Content Security Policy (CSP)
-- [ ] Enable HSTS
-- [ ] Disable X-Powered-By header
-- [ ] Configure trusted domains
+- [x] Configure helmet middleware with strict policies
+- [x] Set Content Security Policy (CSP)
+- [x] Enable HSTS
+- [x] Disable X-Powered-By header
+- [x] Configure trusted domains
 
 ### 2.28 Middleware - Input Validation & Sanitization
 
 **Note: Error handling and rate limiting were completed in Phase 2.7.1 (mandatory prerequisite)**
 
-- [ ] Create `validate.middleware.ts` in `/src/middleware/`
-- [ ] Implement generic Zod validation middleware:
-  - [ ] Accept Zod schema as parameter
-  - [ ] Validate req.body, req.params, req.query
-  - [ ] Throw ValidationError on validation failure
-  - [ ] Let centralized error handler format response
-- [ ] Create request sanitization middleware (XSS protection)
-- [ ] Create detailed request logging middleware
+- [x] Create `validate.middleware.ts` in `/src/middleware/`
+- [x] Implement generic Zod validation middleware:
+  - [x] Accept Zod schema as parameter
+  - [x] Validate req.body, req.params, req.query
+  - [x] Throw ValidationError on validation failure
+  - [x] Let centralized error handler format response
+- [x] Create request sanitization middleware (XSS protection)
+- [x] Create detailed request logging middleware
 
 ### 2.29 Middleware - Additional Security Utilities
 
-- [ ] Create IP tracking utilities
-- [ ] Create request fingerprinting middleware
-- [ ] Verify all middleware integrates with asyncHandler pattern
+- [x] Create IP tracking utilities
+- [x] Create request fingerprinting middleware
+- [x] Verify all middleware integrates with asyncHandler pattern
 
 ### 2.29.1 Internationalization (Backend i18n)
 

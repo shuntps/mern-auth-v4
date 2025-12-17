@@ -6,7 +6,7 @@ import User from '@models/user.model';
 const extractBearerToken = (req: Request): string | undefined => {
   const authHeader = req.get('authorization');
   if (!authHeader) return undefined;
-  const match = authHeader.match(/^Bearer\s+(.+)$/i);
+  const match = /^Bearer\s+(.+)$/i.exec(authHeader);
   return match?.[1];
 };
 
@@ -23,7 +23,11 @@ const setAuthContext = (
   res.locals.auth = context;
 };
 
-export const authenticateRefreshToken = (req: Request, res: Response, next: NextFunction): void => {
+export const authenticateRefreshToken = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
   const { refreshToken } = req.cookies as Record<string, string | undefined>;
 
   if (!refreshToken) {
@@ -36,8 +40,22 @@ export const authenticateRefreshToken = (req: Request, res: Response, next: Next
       throw new AuthenticationError('Invalid session');
     }
 
+    const user = await User.findById(payload.sub).select('role isBanned passwordChangedAt');
+    if (!user) {
+      throw new AuthenticationError('User not found');
+    }
+
+    if (user.isBanned) {
+      throw new AuthenticationError('Account is banned');
+    }
+
+    if (payload.iat && user.changedPasswordAfter(payload.iat)) {
+      throw new AuthenticationError('Password recently changed, please login again');
+    }
+
     setAuthContext(res, {
       userId: payload.sub,
+      role: user.role.toString(),
       sessionId: payload.sessionId,
       refreshToken,
     });
@@ -72,7 +90,7 @@ export const authenticateAccessToken = async (
       throw new AuthenticationError('Account is banned');
     }
 
-    if (payload.iat && user.changedPasswordAfter(Number(payload.iat))) {
+    if (payload.iat && user.changedPasswordAfter(payload.iat)) {
       throw new AuthenticationError('Password recently changed, please login again');
     }
 
@@ -111,7 +129,7 @@ export const optionalAccessToken = async (
       return;
     }
 
-    if (payload.iat && user.changedPasswordAfter(Number(payload.iat))) {
+    if (payload.iat && user.changedPasswordAfter(payload.iat)) {
       next();
       return;
     }

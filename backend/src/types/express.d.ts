@@ -14,6 +14,8 @@ declare global {
         accessToken?: string;
         refreshToken?: string;
       };
+      clientIp?: string;
+      requestFingerprint?: string;
     }
   }
 }

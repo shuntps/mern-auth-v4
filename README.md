@@ -320,6 +320,6 @@ Built following 2025 industry best practices with a focus on security, performan
 
 ---
 
-**Status**: 🚧 In Development (Phase 1: Project Setup)
+**Status**: 🚧 In Development (Phase 2: Backend Auth & Security)
 
 See [ROADMAP.md](ROADMAP.md) for current progress and upcoming milestones.

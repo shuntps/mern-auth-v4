@@ -1,10 +1,11 @@
 import express, { Express, Request, Response } from 'express';
-import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import { env, validateEnv, isDevelopment, isProduction, isTest } from '@config/env';
+import helmet from 'helmet';
+import { helmetConfig } from '@config/security';
 import { connectDatabase, getDatabaseStatus } from '@config/database';
 import { getRedisStatus } from '@config/redis';
 import logger from '@config/logger';
@@ -12,6 +13,9 @@ import passport from '@config/oauth';
 import { errorHandler, notFoundHandler } from '@middleware/errorHandler';
 import { touchLastActivity } from '@middleware/activity.middleware';
 import { generalLimiter } from '@middleware/rateLimiter.middleware';
+import { sanitizeRequest } from '@middleware/sanitize.middleware';
+import { requestLogger } from '@middleware/requestLogger.middleware';
+import { attachRequestFingerprint } from '@middleware/fingerprint.middleware';
 import routes from '@routes/index';
 import { seedDefaultRoles } from '@models/role.model';
 
@@ -21,18 +25,16 @@ import { seedDefaultRoles } from '@models/role.model';
 export const createApp = (): Express => {
   const app = express();
 
+  // Remove powered-by header to avoid leaking implementation details
+  app.disable('x-powered-by');
+
   // Honor reverse proxy headers when deployed behind a proxy (HTTPS enforcement relies on this)
   if (isProduction()) {
     app.set('trust proxy', 1);
   }
 
   // Security middleware
-  app.use(
-    helmet({
-      contentSecurityPolicy: isDevelopment() ? false : undefined,
-      crossOriginEmbedderPolicy: false,
-    })
-  );
+  app.use(helmet(helmetConfig));
 
   // CORS configuration
   app.use(
@@ -76,6 +78,12 @@ export const createApp = (): Express => {
   // Cookie parser
   app.use(cookieParser());
 
+  // Capture client IP and request fingerprint early
+  app.use(attachRequestFingerprint);
+
+  // Sanitize incoming request data
+  app.use(sanitizeRequest);
+
   // Passport initialization for OAuth strategies
   app.use(passport.initialize());
 
@@ -88,6 +96,9 @@ export const createApp = (): Express => {
   } else {
     app.use(morgan(env.logFormat));
   }
+
+  // Structured request logging
+  app.use(requestLogger);
 
   // Apply general rate limiter to all routes
   app.use(generalLimiter);

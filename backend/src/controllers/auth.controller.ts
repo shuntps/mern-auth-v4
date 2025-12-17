@@ -1,8 +1,9 @@
-import { type Request, type CookieOptions, type RequestHandler } from 'express';
+import { type CookieOptions, type RequestHandler } from 'express';
 import { asyncHandler } from '@utils/asyncHandler';
 import { AuthenticationError } from '@utils/errors';
 import { env } from '@config/env';
 import { refreshCsrfToken } from '@middleware/csrf.middleware';
+import { buildSessionMetadata } from '@utils/request';
 import {
   registerAndAuthenticate,
   loginUser,
@@ -29,15 +30,6 @@ import {
   twoFactorVerifySchema,
   twoFactorDisableSchema,
 } from '@validators/auth.validators';
-import { type SessionMetadata } from '@services/session.service';
-
-const buildSessionMetadata = (req: Request): SessionMetadata => ({
-  ip: req.ip,
-  userAgent: req.get('user-agent') ?? undefined,
-  browser: req.get('sec-ch-ua') ?? undefined,
-  os: req.get('sec-ch-ua-platform') ?? undefined,
-  device: req.get('sec-ch-ua-mobile') ?? undefined,
-});
 
 const buildCookieOptions = (maxAge: number): CookieOptions => ({
   httpOnly: true,

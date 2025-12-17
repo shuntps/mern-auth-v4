@@ -32,7 +32,7 @@ const getRoleInfo = async (roleId?: string): Promise<RoleInfo> => {
 
   const roleInfo: RoleInfo = {
     name: roleDoc.name,
-    permissions: roleDoc.permissions ?? [],
+    permissions: roleDoc.permissions,
   };
 
   roleCache.set(roleId, roleInfo);
@@ -61,10 +61,14 @@ const hasRequiredPermissions = (
     : required.every((permission) => hasPermission(permissions, permission));
 };
 
-const attachRoleContext = (res: Response, roleInfo: RoleInfo): void => {
-  const authContext = res.locals.auth ?? {};
+const attachRoleContext = (
+  res: Response,
+  roleInfo: RoleInfo,
+  authContext: { userId: string; role?: string }
+): void => {
   res.locals.auth = {
     ...authContext,
+    role: authContext.role ?? roleInfo.name,
     roleName: roleInfo.name,
     permissions: roleInfo.permissions,
   };
@@ -74,12 +78,12 @@ export const authorize = (...allowedRoles: UserRole[]) => {
   return async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const authContext = res.locals.auth;
-      if (!authContext || !authContext.userId) {
+      if (!authContext?.userId) {
         throw new AuthenticationError('Not authenticated');
       }
 
       const roleInfo = await getRoleInfo(authContext.role);
-      attachRoleContext(res, roleInfo);
+      attachRoleContext(res, roleInfo, authContext);
 
       if (allowedRoles.length === 0) {
         next();
@@ -110,12 +114,12 @@ export const authorizePermissions = (
   return async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const authContext = res.locals.auth;
-      if (!authContext || !authContext.userId) {
+      if (!authContext?.userId) {
         throw new AuthenticationError('Not authenticated');
       }
 
       const roleInfo = await getRoleInfo(authContext.role);
-      attachRoleContext(res, roleInfo);
+      attachRoleContext(res, roleInfo, authContext);
 
       const authorized = hasRequiredPermissions(roleInfo.permissions, requiredPermissions, mode);
       if (!authorized) {
