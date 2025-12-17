@@ -223,6 +223,10 @@ SMTP_PASS=your-app-password
 
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
+
+TWO_FACTOR_APP_NAME=MERN Auth v4
+TWO_FACTOR_ISSUER=mernauth.com
+TWO_FACTOR_TEMP_SECRET_TTL=600
 ```
 
 ### Frontend (.env)
@@ -231,6 +235,12 @@ GOOGLE_CLIENT_SECRET=your-google-client-secret
 VITE_API_URL=http://localhost:5000/api
 VITE_GOOGLE_CLIENT_ID=your-google-client-id
 ```
+
+### Frontend OAuth callback handling
+
+- Add a frontend route at `/auth/callback` that reads `status` or `error` from the query string after Google redirects.
+- On success, the backend sets `accessToken`, `refreshToken`, and `csrfToken` cookies; the page can then redirect to the intended destination or show a success message.
+- On error (e.g., `?error=google_auth_failed`), show a user-friendly message and a retry link back to `GET /api/auth/google`.
 
 ## 🧪 Development
 

@@ -23,9 +23,15 @@ export const registerSchema = z.object({
     .max(50, 'Last name cannot exceed 50 characters'),
 });
 
+const twoFactorCodeSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{6}$/u, 'Two-factor code must be 6 digits');
+
 export const loginSchema = z.object({
   email: emailSchema,
   password: z.string().min(1, 'Password is required'),
+  twoFactorCode: twoFactorCodeSchema.optional(),
 });
 
 export const forgotPasswordSchema = z.object({
@@ -44,4 +50,12 @@ export const changePasswordSchema = z.object({
 
 export const verifyEmailSchema = z.object({
   token: z.string().min(1, 'Verification token is required'),
+});
+
+export const twoFactorVerifySchema = z.object({
+  token: twoFactorCodeSchema,
+});
+
+export const twoFactorDisableSchema = z.object({
+  token: twoFactorCodeSchema,
 });

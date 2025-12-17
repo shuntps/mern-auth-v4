@@ -1,10 +1,12 @@
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
+import QRCode from 'qrcode';
+import speakeasy from 'speakeasy';
 import redisClient from '@config/redis';
 import { env } from '@config/env';
 import User from '@models/user.model';
 import { type IUser } from '@custom-types/user.types';
-import { AuthenticationError, ConflictError } from '@utils/errors';
+import { AppError, AuthenticationError, ConflictError } from '@utils/errors';
 import {
   generateAccessToken,
   generateRefreshToken,
@@ -27,6 +29,7 @@ import {
   sendWelcomeEmail,
 } from './email.service';
 import { ValidationError } from '@utils/errors';
+import { type Profile as GoogleProfile } from 'passport-google-oauth20';
 
 export interface AuthUser {
   id: string;
@@ -54,6 +57,10 @@ const PASSWORD_RESET_PREFIX = 'password-reset:';
 
 const EMAIL_VERIFICATION_PREFIX = 'email-verify:';
 
+const TWO_FACTOR_SETUP_PREFIX = 'twofactor-setup:';
+
+const TWO_FACTOR_WINDOW = 1;
+
 const buildPasswordResetKey = (tokenHash: string): string => `${PASSWORD_RESET_PREFIX}${tokenHash}`;
 
 const buildEmailVerificationKey = (tokenHash: string): string =>
@@ -63,6 +70,21 @@ const hashResetToken = (token: string): string =>
   crypto.createHash('sha256').update(token).digest('hex');
 
 const buildLoginAttemptKey = (email: string): string => `${LOGIN_ATTEMPT_PREFIX}${email}`;
+
+const buildTwoFactorSetupKey = (userId: string): string => `${TWO_FACTOR_SETUP_PREFIX}${userId}`;
+
+interface TwoFactorSetupRecord {
+  secret: string;
+}
+
+const mergeIpHistory = (existing: string[] | undefined, ip?: string): string[] => {
+  const current = existing ?? [];
+  if (!ip) return current;
+  return [ip, ...current.filter((value) => value !== ip)].slice(0, 10);
+};
+
+const verifyTwoFactorToken = (secret: string, token: string): boolean =>
+  speakeasy.totp.verify({ secret, token, encoding: 'base32', window: TWO_FACTOR_WINDOW });
 
 const incrementFailedLoginAttempt = async (email: string): Promise<number> => {
   const key = buildLoginAttemptKey(email);
@@ -189,10 +211,11 @@ export const registerAndAuthenticate = async (
 export const loginUser = async (
   email: string,
   password: string,
-  metadata: SessionMetadata
+  metadata: SessionMetadata,
+  twoFactorCode?: string
 ): Promise<AuthTokens & { user: AuthUser }> => {
   const normalizedEmail = email.toLowerCase();
-  const user = await User.findOne({ email: normalizedEmail }).select('+password');
+  const user = await User.findOne({ email: normalizedEmail }).select('+password +twoFactorSecret');
   if (!user || !user.password) {
     await incrementFailedLoginAttempt(normalizedEmail);
     throw new AuthenticationError('Invalid credentials');
@@ -214,16 +237,29 @@ export const loginUser = async (
     throw new AuthenticationError('Invalid credentials');
   }
 
+  if (user.twoFactorEnabled) {
+    if (!user.twoFactorSecret) {
+      await incrementFailedLoginAttempt(normalizedEmail);
+      throw new AuthenticationError('Two-factor authentication is not configured');
+    }
+
+    if (!twoFactorCode) {
+      await incrementFailedLoginAttempt(normalizedEmail);
+      throw new AuthenticationError('Two-factor code required');
+    }
+
+    const isTwoFactorValid = verifyTwoFactorToken(user.twoFactorSecret, twoFactorCode);
+    if (!isTwoFactorValid) {
+      await incrementFailedLoginAttempt(normalizedEmail);
+      throw new AuthenticationError('Invalid two-factor code');
+    }
+  }
+
   await clearFailedLoginAttempts(normalizedEmail);
 
   user.lastLogin = new Date();
   user.lastActivity = new Date();
-  if (metadata.ip) {
-    user.ipHistory = [metadata.ip, ...user.ipHistory.filter((ip) => ip !== metadata.ip)].slice(
-      0,
-      10
-    );
-  }
+  user.ipHistory = mergeIpHistory(user.ipHistory, metadata.ip);
   await user.save({ validateModifiedOnly: true });
 
   const { accessToken, refreshToken } = await createSessionAndTokens(user, metadata);
@@ -233,6 +269,101 @@ export const loginUser = async (
     refreshToken,
     user: toAuthUser(user),
   };
+};
+
+export const startTwoFactorSetup = async (
+  userId: string
+): Promise<{
+  otpauthUrl: string;
+  qrCodeDataUrl: string;
+  secret: string;
+}> => {
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new AuthenticationError('User not found');
+  }
+
+  if (user.twoFactorEnabled) {
+    throw new ConflictError('Two-factor authentication is already enabled');
+  }
+
+  const secret = speakeasy.generateSecret({
+    name: `${env.twoFactorAppName} (${user.email})`,
+    issuer: env.twoFactorIssuer,
+  });
+
+  if (!secret.base32 || !secret.otpauth_url) {
+    throw new AppError('Failed to generate two-factor secret', 500);
+  }
+
+  const pendingSecret: TwoFactorSetupRecord = { secret: secret.base32 };
+  await redisClient.set(
+    buildTwoFactorSetupKey(user._id.toString()),
+    JSON.stringify(pendingSecret),
+    'EX',
+    env.twoFactorTempSecretTtl
+  );
+
+  const qrCodeDataUrl = await QRCode.toDataURL(secret.otpauth_url);
+
+  return {
+    otpauthUrl: secret.otpauth_url,
+    qrCodeDataUrl,
+    secret: secret.base32,
+  };
+};
+
+export const verifyTwoFactorSetup = async (userId: string, token: string): Promise<AuthUser> => {
+  const setupKey = buildTwoFactorSetupKey(userId);
+  const rawSecret = await redisClient.get(setupKey);
+
+  if (!rawSecret) {
+    throw new AuthenticationError('Two-factor setup not found or expired');
+  }
+
+  const parsed = JSON.parse(rawSecret) as TwoFactorSetupRecord;
+  const isValid = verifyTwoFactorToken(parsed.secret, token);
+  if (!isValid) {
+    throw new AuthenticationError('Invalid two-factor code');
+  }
+
+  const user = await User.findById(userId).select('+twoFactorSecret');
+  if (!user) {
+    await redisClient.del(setupKey);
+    throw new AuthenticationError('User not found');
+  }
+
+  user.twoFactorEnabled = true;
+  user.twoFactorSecret = parsed.secret;
+  await user.save({ validateModifiedOnly: true });
+
+  await redisClient.del(setupKey);
+
+  return toAuthUser(user);
+};
+
+export const disableTwoFactor = async (userId: string, token: string): Promise<AuthUser> => {
+  const user = await User.findById(userId).select('+twoFactorSecret');
+  if (!user) {
+    throw new AuthenticationError('User not found');
+  }
+
+  if (!user.twoFactorEnabled || !user.twoFactorSecret) {
+    throw new ConflictError('Two-factor authentication is not enabled');
+  }
+
+  const isValid = verifyTwoFactorToken(user.twoFactorSecret, token);
+  if (!isValid) {
+    throw new AuthenticationError('Invalid two-factor code');
+  }
+
+  user.twoFactorEnabled = false;
+  user.twoFactorSecret = undefined;
+  await user.save({ validateModifiedOnly: true });
+
+  await redisClient.del(buildTwoFactorSetupKey(userId));
+
+  return toAuthUser(user);
 };
 
 export const refreshTokens = async (
@@ -388,4 +519,51 @@ export const getUserIpHistory = async (userId: string): Promise<string[]> => {
     throw new AuthenticationError('User not found');
   }
   return user.ipHistory;
+};
+
+export const authenticateWithGoogle = async (
+  profile: GoogleProfile,
+  metadata: SessionMetadata
+): Promise<AuthTokens & { user: AuthUser }> => {
+  const email = profile.emails?.[0]?.value.toLowerCase();
+  const googleId = profile.id;
+
+  if (!email) {
+    throw new AuthenticationError('Google account does not provide an email');
+  }
+
+  let user = await User.findOne({ googleId });
+
+  if (!user) {
+    user = await User.findOne({ email });
+    if (user) {
+      user.googleId ??= googleId;
+    }
+  }
+
+  user ??= new User({
+    email,
+    googleId,
+    firstName: profile.name?.givenName ?? 'Google',
+    lastName: profile.name?.familyName ?? 'User',
+    isEmailVerified: true,
+  });
+
+  if (user.isBanned) {
+    throw new AuthenticationError('Account is banned');
+  }
+
+  user.isEmailVerified = true;
+  user.lastLogin = new Date();
+  user.lastActivity = new Date();
+  user.ipHistory = mergeIpHistory(user.ipHistory, metadata.ip);
+
+  await user.save({ validateModifiedOnly: true });
+
+  const tokens = await createSessionAndTokens(user, metadata);
+
+  return {
+    ...tokens,
+    user: toAuthUser(user),
+  };
 };

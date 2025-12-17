@@ -8,6 +8,7 @@ import { env, validateEnv, isDevelopment, isProduction, isTest } from '@config/e
 import { connectDatabase, getDatabaseStatus } from '@config/database';
 import { getRedisStatus } from '@config/redis';
 import logger from '@config/logger';
+import passport from '@config/oauth';
 import { errorHandler, notFoundHandler } from '@middleware/errorHandler';
 import { touchLastActivity } from '@middleware/activity.middleware';
 import { generalLimiter } from '@middleware/rateLimiter.middleware';
@@ -74,6 +75,9 @@ export const createApp = (): Express => {
 
   // Cookie parser
   app.use(cookieParser());
+
+  // Passport initialization for OAuth strategies
+  app.use(passport.initialize());
 
   // Update last activity for authenticated requests (best-effort)
   app.use(touchLastActivity);

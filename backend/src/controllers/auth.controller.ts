@@ -9,10 +9,15 @@ import {
   refreshTokens,
   logoutSession,
   changePassword as changePasswordService,
+  startTwoFactorSetup,
+  verifyTwoFactorSetup,
+  disableTwoFactor as disableTwoFactorService,
   requestPasswordReset,
   resetPasswordWithToken,
   verifyEmailWithToken,
   getUserIpHistory,
+  type AuthTokens,
+  type AuthUser,
 } from '@services/auth.service';
 import {
   registerSchema,
@@ -21,6 +26,8 @@ import {
   resetPasswordSchema,
   changePasswordSchema,
   verifyEmailSchema,
+  twoFactorVerifySchema,
+  twoFactorDisableSchema,
 } from '@validators/auth.validators';
 import { type SessionMetadata } from '@services/session.service';
 
@@ -42,6 +49,16 @@ const buildCookieOptions = (maxAge: number): CookieOptions => ({
 const accessCookieOptions = buildCookieOptions(env.cookieMaxAge);
 const refreshCookieOptions = buildCookieOptions(env.cookieMaxAge);
 
+const buildOAuthRedirectUrl = (params?: { error?: string }): string => {
+  const url = new URL('/auth/callback', env.frontendUrl);
+  if (params?.error) {
+    url.searchParams.set('error', params.error);
+  } else {
+    url.searchParams.set('status', 'success');
+  }
+  return url.toString();
+};
+
 export const register: RequestHandler = asyncHandler(async (req, res) => {
   const { email, password, firstName, lastName } = registerSchema.parse(req.body);
   const { accessToken, refreshToken, user } = await registerAndAuthenticate(
@@ -62,12 +79,13 @@ export const register: RequestHandler = asyncHandler(async (req, res) => {
 });
 
 export const login: RequestHandler = asyncHandler(async (req, res) => {
-  const { email, password } = loginSchema.parse(req.body);
+  const { email, password, twoFactorCode } = loginSchema.parse(req.body);
 
   const { accessToken, refreshToken, user } = await loginUser(
     email,
     password,
-    buildSessionMetadata(req)
+    buildSessionMetadata(req),
+    twoFactorCode
   );
 
   const csrfToken = refreshCsrfToken(res);
@@ -171,4 +189,57 @@ export const getIpHistory: RequestHandler = asyncHandler(async (_req, res) => {
   const ipHistory = await getUserIpHistory(authContext.userId);
 
   res.status(200).json({ status: 'success', data: { ipHistory } });
+});
+
+export const enableTwoFactor: RequestHandler = asyncHandler(async (_req, res) => {
+  const authContext = res.locals.auth as { userId?: string } | undefined;
+  if (!authContext?.userId) {
+    throw new AuthenticationError('Not authenticated');
+  }
+
+  const setup = await startTwoFactorSetup(authContext.userId);
+
+  res.status(200).json({ status: 'success', data: setup });
+});
+
+export const verifyTwoFactor: RequestHandler = asyncHandler(async (req, res) => {
+  const authContext = res.locals.auth as { userId?: string } | undefined;
+  if (!authContext?.userId) {
+    throw new AuthenticationError('Not authenticated');
+  }
+
+  const { token } = twoFactorVerifySchema.parse(req.body);
+  const user = await verifyTwoFactorSetup(authContext.userId, token);
+
+  res.status(200).json({ status: 'success', data: { user } });
+});
+
+export const disableTwoFactor: RequestHandler = asyncHandler(async (req, res) => {
+  const authContext = res.locals.auth as { userId?: string } | undefined;
+  if (!authContext?.userId) {
+    throw new AuthenticationError('Not authenticated');
+  }
+
+  const { token } = twoFactorDisableSchema.parse(req.body);
+  const user = await disableTwoFactorService(authContext.userId, token);
+
+  res.status(200).json({ status: 'success', data: { user } });
+});
+
+type OAuthResult = AuthTokens & { user: AuthUser };
+
+export const googleOAuthCallback: RequestHandler = asyncHandler((req, res) => {
+  const authResult = req.user as OAuthResult | undefined;
+
+  if (!authResult) {
+    res.redirect(buildOAuthRedirectUrl({ error: 'google_auth_failed' }));
+    return;
+  }
+
+  refreshCsrfToken(res);
+
+  res
+    .cookie('accessToken', authResult.accessToken, accessCookieOptions)
+    .cookie('refreshToken', authResult.refreshToken, refreshCookieOptions)
+    .redirect(buildOAuthRedirectUrl());
 });

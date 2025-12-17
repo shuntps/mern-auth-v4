@@ -420,50 +420,50 @@ This roadmap outlines all steps for building a production-ready MERN stack authe
 
 ### 2.21 Authentication - Google OAuth Setup
 
-- [ ] Install passport, passport-google-oauth20, @types/passport
-- [ ] Create OAuth config in `/src/config/oauth.ts`
-- [ ] Configure Google OAuth strategy
-- [ ] Implement Google OAuth callback handler:
-  - [ ] Find or create user with googleId
-  - [ ] Set isEmailVerified to true
-  - [ ] Generate tokens
-  - [ ] Create session
-  - [ ] Redirect to frontend with tokens
-- [ ] Add `GET /api/auth/google` route
-- [ ] Add `GET /api/auth/google/callback` route
+- [x] Install passport, passport-google-oauth20, @types/passport
+- [x] Create OAuth config in `/src/config/oauth.ts`
+- [x] Configure Google OAuth strategy
+- [x] Implement Google OAuth callback handler:
+  - [x] Find or create user with googleId
+  - [x] Set isEmailVerified to true
+  - [x] Generate tokens
+  - [x] Create session
+  - [x] Redirect to frontend with tokens
+- [x] Add `GET /api/auth/google` route
+- [x] Add `GET /api/auth/google/callback` route
 
 ### 2.22 Authentication - Two-Factor Authentication (2FA)
 
-- [ ] Install speakeasy, qrcode, @types/qrcode
-- [ ] Implement `enable2FA` controller:
-  - [ ] Generate 2FA secret
-  - [ ] Store secret temporarily in Redis
-  - [ ] Generate QR code
-  - [ ] Return QR code and secret
-- [ ] Implement `verify2FA` controller:
-  - [ ] Verify TOTP code
-  - [ ] Save secret to user model
-  - [ ] Enable 2FA for user
-  - [ ] Return success response
-- [ ] Implement `disable2FA` controller
-- [ ] Modify login flow to check for 2FA:
-  - [ ] If 2FA enabled, require TOTP code
-  - [ ] Validate TOTP before issuing tokens
-- [ ] Add routes:
-  - [ ] `POST /api/auth/2fa/enable`
-  - [ ] `POST /api/auth/2fa/verify`
-  - [ ] `POST /api/auth/2fa/disable`
+- [x] Install speakeasy, qrcode, @types/qrcode
+- [x] Implement `enable2FA` controller:
+  - [x] Generate 2FA secret
+  - [x] Store secret temporarily in Redis
+  - [x] Generate QR code
+  - [x] Return QR code and secret
+- [x] Implement `verify2FA` controller:
+  - [x] Verify TOTP code
+  - [x] Save secret to user model
+  - [x] Enable 2FA for user
+  - [x] Return success response
+- [x] Implement `disable2FA` controller
+- [x] Modify login flow to check for 2FA:
+  - [x] If 2FA enabled, require TOTP code
+  - [x] Validate TOTP before issuing tokens
+- [x] Add routes:
+  - [x] `POST /api/auth/2fa/enable`
+  - [x] `POST /api/auth/2fa/verify`
+  - [x] `POST /api/auth/2fa/disable`
 
 ### 2.23 Middleware - Authentication Middleware
 
-- [ ] Create `auth.middleware.ts` in `/src/middleware/`
-- [ ] Implement `authenticate` middleware:
-  - [ ] Extract access token from Authorization header or cookie
-  - [ ] Verify access token
-  - [ ] Check if password was changed after token was issued
-  - [ ] Attach user to request object
-  - [ ] Handle token expiration errors
-- [ ] Implement `optionalAuth` middleware (for public routes with optional auth)
+- [x] Create `auth.middleware.ts` in `/src/middleware/`
+- [x] Implement `authenticate` middleware:
+  - [x] Extract access token from Authorization header or cookie
+  - [x] Verify access token
+  - [x] Check if password was changed after token was issued
+  - [x] Attach user to request context
+  - [x] Handle token expiration errors
+- [x] Implement `optionalAuth` middleware (for public routes with optional auth)
 
 ---
 
@@ -722,7 +722,7 @@ This roadmap outlines all steps for building a production-ready MERN stack authe
 - [ ] Test all admin endpoints
 - [ ] Verify rate limiting works
 - [ ] Test session management
-- [ ] Test 2FA flow
+- [x] Test 2FA flow
 - [ ] Test OAuth flow
 - [ ] Run ESLint and fix all errors
 - [ ] Run Prettier to format code

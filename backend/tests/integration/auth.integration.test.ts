@@ -4,6 +4,7 @@ import type { Response as SupertestResponse } from 'supertest';
 import { describe, beforeAll, afterAll, beforeEach, it, expect, vi } from 'vitest';
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
+import speakeasy from 'speakeasy';
 
 vi.mock('@config/logger', () => ({
   __esModule: true,
@@ -247,6 +248,17 @@ const getSetCookieHeader = (response: SupertestResponse): string[] => {
   const setCookieHeader = response.header['set-cookie'] as string | string[] | undefined;
   if (!setCookieHeader) return [];
   return Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
+};
+
+const refreshCsrfContext = (
+  response: SupertestResponse,
+  currentCookie?: string,
+  currentToken?: string
+): { csrfCookie?: string; csrfToken?: string } => {
+  const cookies = getSetCookieHeader(response);
+  const csrfCookie = getCookieValue(cookies, 'csrfToken') ?? currentCookie;
+  const csrfToken = extractTokenFromCookie(csrfCookie) ?? currentToken;
+  return { csrfCookie, csrfToken };
 };
 
 interface RegisterResponseBody {
@@ -550,5 +562,109 @@ describe('auth integration', () => {
     const loginCookies = getSetCookieHeader(loginRes);
     expect(getCookieValue(loginCookies, 'accessToken')).toBeTruthy();
     expect(getCookieValue(loginCookies, 'refreshToken')).toBeTruthy();
+  });
+
+  it('enables, verifies, and enforces two-factor authentication for login', async () => {
+    const csrfRes = await agent.get('/api/auth/csrf-token');
+    let csrfCookie = getCookieValue(getSetCookieHeader(csrfRes), 'csrfToken');
+    let csrfToken = extractTokenFromCookie(csrfCookie);
+
+    const email = `twofa-${Date.now().toString()}@example.com`;
+
+    const registerRes = await agent
+      .post('/api/auth/register')
+      .set('Cookie', csrfCookie ? [csrfCookie] : [])
+      .set('x-csrf-token', csrfToken ?? '')
+      .send({
+        email,
+        password: 'Password123!',
+        firstName: 'Two',
+        lastName: 'Factor',
+      });
+
+    ({ csrfCookie, csrfToken } = refreshCsrfContext(registerRes, csrfCookie, csrfToken));
+
+    const registerCookies = getSetCookieHeader(registerRes);
+    const refreshCookie = getCookieValue(registerCookies, 'refreshToken');
+
+    const userModel: typeof import('@models/user.model') = await import('@models/user.model');
+    await userModel.default.updateOne({ email }, { isEmailVerified: true });
+
+    let authCookies = [refreshCookie, csrfCookie].filter(
+      (cookie): cookie is string => typeof cookie === 'string'
+    );
+
+    const enableRes = await agent
+      .post('/api/auth/2fa/enable')
+      .set('Cookie', authCookies)
+      .set('x-csrf-token', csrfToken ?? '');
+
+    expect(enableRes.status).toBe(200);
+    const { secret } = (enableRes.body as { data?: { secret?: string } }).data ?? {};
+    expect(secret).toBeTruthy();
+    ({ csrfCookie, csrfToken } = refreshCsrfContext(enableRes, csrfCookie, csrfToken));
+    authCookies = [refreshCookie, csrfCookie].filter(
+      (cookie): cookie is string => typeof cookie === 'string'
+    );
+
+    const totpForVerification = speakeasy.totp({ secret: secret ?? '', encoding: 'base32' });
+
+    const verify2faRes = await agent
+      .post('/api/auth/2fa/verify')
+      .set('Cookie', authCookies)
+      .set('x-csrf-token', csrfToken ?? '')
+      .send({ token: totpForVerification });
+
+    expect(verify2faRes.status).toBe(200);
+    ({ csrfCookie, csrfToken } = refreshCsrfContext(verify2faRes, csrfCookie, csrfToken));
+
+    const loginWithoutCodeRes = await agent
+      .post('/api/auth/login')
+      .set('Cookie', csrfCookie ? [csrfCookie] : [])
+      .set('x-csrf-token', csrfToken ?? '')
+      .send({ email, password: 'Password123!' });
+
+    expect(loginWithoutCodeRes.status).toBe(401);
+
+    const rotatedCsrf = refreshCsrfContext(loginWithoutCodeRes, csrfCookie, csrfToken);
+    csrfCookie = rotatedCsrf.csrfCookie;
+    csrfToken = rotatedCsrf.csrfToken;
+
+    expect(csrfCookie).toBeTruthy();
+    expect(csrfToken).toBeTruthy();
+
+    const twoFactorCode = speakeasy.totp({ secret: secret ?? '', encoding: 'base32' });
+    const loginWithCodeRes = await agent
+      .post('/api/auth/login')
+      .set('Cookie', csrfCookie ? [csrfCookie] : [])
+      .set('x-csrf-token', csrfToken ?? '')
+      .send({ email, password: 'Password123!', twoFactorCode });
+
+    expect(loginWithCodeRes.status).toBe(200);
+    ({ csrfCookie, csrfToken } = refreshCsrfContext(loginWithCodeRes, csrfCookie, csrfToken));
+    const loginCookies = getSetCookieHeader(loginWithCodeRes);
+    const refreshCookieAfterLogin = getCookieValue(loginCookies, 'refreshToken') ?? refreshCookie;
+
+    const disableCode = speakeasy.totp({ secret: secret ?? '', encoding: 'base32' });
+    const disableCookies = [refreshCookieAfterLogin, csrfCookie].filter(
+      (cookie): cookie is string => typeof cookie === 'string'
+    );
+
+    const disableRes = await agent
+      .post('/api/auth/2fa/disable')
+      .set('Cookie', disableCookies)
+      .set('x-csrf-token', csrfToken ?? '')
+      .send({ token: disableCode });
+
+    expect(disableRes.status).toBe(200);
+    ({ csrfCookie, csrfToken } = refreshCsrfContext(disableRes, csrfCookie, csrfToken));
+
+    const loginAfterDisableRes = await agent
+      .post('/api/auth/login')
+      .set('Cookie', csrfCookie ? [csrfCookie] : [])
+      .set('x-csrf-token', csrfToken ?? '')
+      .send({ email, password: 'Password123!' });
+
+    expect(loginAfterDisableRes.status).toBe(200);
   });
 });

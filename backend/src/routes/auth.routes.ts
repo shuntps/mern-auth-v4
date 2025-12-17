@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
 import {
   authLimiter,
   loginLimiter,
@@ -7,6 +7,9 @@ import {
 import { issueCsrfToken, verifyCsrfToken } from '@middleware/csrf.middleware';
 import { validate } from '@middleware/validate.middleware';
 import { authenticateRefreshToken } from '@middleware/auth.middleware';
+import passport, { isGoogleOAuthEnabled } from '@config/oauth';
+import { env } from '@config/env';
+import { type AuthenticateOptions } from 'passport';
 import {
   registerSchema,
   loginSchema,
@@ -14,12 +17,40 @@ import {
   resetPasswordSchema,
   changePasswordSchema,
   verifyEmailSchema,
+  twoFactorVerifySchema,
+  twoFactorDisableSchema,
 } from '@validators/auth.validators';
 import * as authController from '@controllers/auth.controller';
 
 const router = Router();
 
+const authenticate: (strategy: string, options: AuthenticateOptions) => RequestHandler = (
+  strategy,
+  options
+) => passport.authenticate(strategy, options) as RequestHandler;
+
+const googleAuthHandler = authenticate('google', {
+  scope: ['profile', 'email'],
+  session: false,
+});
+
+const googleAuthCallbackHandler = authenticate('google', {
+  session: false,
+  failureRedirect: `${env.frontendUrl}/auth/callback?error=google_auth_failed`,
+});
+
 router.get('/auth/csrf-token', authLimiter, issueCsrfToken, authController.getCsrfToken);
+
+if (isGoogleOAuthEnabled) {
+  router.get('/auth/google', authLimiter, googleAuthHandler);
+
+  router.get(
+    '/auth/google/callback',
+    authLimiter,
+    googleAuthCallbackHandler,
+    authController.googleOAuthCallback
+  );
+}
 
 router.post(
   '/auth/register',
@@ -65,6 +96,32 @@ router.post(
   authenticateRefreshToken,
   validate(changePasswordSchema),
   authController.changePassword
+);
+
+router.post(
+  '/auth/2fa/enable',
+  authLimiter,
+  verifyCsrfToken,
+  authenticateRefreshToken,
+  authController.enableTwoFactor
+);
+
+router.post(
+  '/auth/2fa/verify',
+  authLimiter,
+  verifyCsrfToken,
+  authenticateRefreshToken,
+  validate(twoFactorVerifySchema),
+  authController.verifyTwoFactor
+);
+
+router.post(
+  '/auth/2fa/disable',
+  authLimiter,
+  verifyCsrfToken,
+  authenticateRefreshToken,
+  validate(twoFactorDisableSchema),
+  authController.disableTwoFactor
 );
 
 router.get(

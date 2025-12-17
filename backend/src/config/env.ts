@@ -109,6 +109,7 @@ export const env = {
   // 2FA
   twoFactorAppName: process.env.TWO_FACTOR_APP_NAME ?? 'MERN Auth v4',
   twoFactorIssuer: process.env.TWO_FACTOR_ISSUER ?? 'mernauth.com',
+  twoFactorTempSecretTtl: parseInt(process.env.TWO_FACTOR_TEMP_SECRET_TTL ?? '600', 10),
 
   // Cache
   cacheTtl: parseInt(process.env.CACHE_TTL ?? '3600', 10),

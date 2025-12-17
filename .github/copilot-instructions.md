@@ -2,40 +2,36 @@
 
 ## Context & Architecture
 
-- Express 5 + TypeScript backend with React 19 + Vite frontend; roadmap-driven (see ROADMAP.md). Backend is current focus.
-- Layering: routes (declarative) → validators (Zod) → controllers (wrapped with asyncHandler) → services. Dual JWT (15m access, 7d refresh) + Redis sessions; centralized errors.
-- HTTPS enforced in production with proxy trust; CSRF double-submit on auth routes; rate limiting via Redis.
+- Express 5 + TypeScript backend (current focus) with planned React 19 + Vite frontend; roadmap-driven (ROADMAP.md). Backend layering: routes (pure/declarative) → validators (Zod) → controllers (asyncHandler-wrapped) → services. JWT auth (15m access, 7d refresh) with Redis sessions; centralized errors.
+- Security defaults: HTTPS enforcement in production (trust proxy), Redis-backed rate limiting, CSRF double-submit with rotation + failure threshold, HTTP-only access/refresh cookies.
 
 ## Non-Negotiables
 
 - Strict TS (no any); use path aliases from backend/tsconfig (`@config/*`, `@controllers/*`, `@services/*`, `@models/*`, `@routes/*`, `@middleware/*`, `@utils/*`, `@custom-types/*`, `@validators/*`).
-- Read config only from backend/src/config/env.ts (validateEnv before start); never use process.env elsewhere.
-- Throw AppError variants (backend/src/utils/errors.ts); controllers exported via asyncHandler (backend/src/utils/asyncHandler.ts). Services stay framework-agnostic.
-- Routes stay declarative: middleware (rate limiters, CSRF, validate) then controller; do not wrap controllers in route files.
+- Read config only via env object in backend/src/config/env.ts (validateEnv before start); never read process.env elsewhere.
+- Errors: throw AppError variants from backend/src/utils/errors.ts. Controllers exported already wrapped in asyncHandler (backend/src/utils/asyncHandler.ts). Services stay framework-agnostic.
+- Routes stay declarative: middleware chain (rate limiter → CSRF → validate → auth when needed) then controller; never wrap controllers in route files.
 
-## Core Backend Pieces
+## Key Backend Pieces
 
-- Bootstrap: backend/src/index.ts sets trust proxy, helmet/cors/compression/body parsers, cookieParser, touchLastActivity middleware, general rate limiter, mounts routes under env.apiBasePath, adds /health, notFoundHandler → errorHandler. Seeds roles at startup.
-- Env + connections: backend/src/config/env.ts, database.ts (Mongo connect/shutdown), redis.ts (ioredis client with retry), logger.ts (Winston to logs/).
-- Models: backend/src/models/user.model.ts (default role assignment, bcrypt hashing on save, comparePassword/changedPasswordAfter, ipHistory max 10, lastActivity/lastLogin), backend/src/models/role.model.ts (seed roles). Types in backend/src/types/user.types.ts.
-- Auth services: backend/src/services/token.service.ts (typed JWT), session.service.ts (Redis sessions session:{userId}:{sessionId}, scan+mget for listing), auth.service.ts (register/login/refresh/logout/forgot/reset/change). Reset tokens are hashed (sha256) before storing in Redis; password change revokes all sessions; reset also revokes all sessions.
-- Middleware: rateLimiter.middleware.ts (Redis store via redisClient.call with prefixes), csrf.middleware.ts (issue/verify token), activity.middleware.ts (best-effort lastActivity/ipHistory update once/min using access token), errorHandler.ts.
-- Routes/controllers/validators: auth.routes.ts wires CSRF + rate limiters + Zod validators from auth.validators.ts; controllers in auth.controller.ts set/clear HTTP-only cookies (secure/sameSite from env) and stay thin.
+- Bootstrap: backend/src/index.ts sets trust proxy, helmet/cors/compression/body parsers, cookieParser, passport init, touchLastActivity, generalLimiter, mounts routes at env.apiBasePath, /health status, notFoundHandler → errorHandler; seeds roles at startup.
+- Config & infra: env.ts (all config), database.ts (Mongo connect/shutdown), redis.ts (ioredis w/ retry), logger.ts (Winston → logs/), oauth.ts (Google strategy gated by env vars, exports isGoogleOAuthEnabled).
+- Models & types: backend/src/models/user.model.ts (default role pre-validate, bcrypt pre-save, comparePassword/changedPasswordAfter, ipHistory max 10, lastActivity/lastLogin, googleId field). Role seeding in backend/src/models/role.model.ts. Types in backend/src/types/user.types.ts and express.d.ts (locals.csrfToken/auth).
+- Services: token.service.ts (typed JWT), session.service.ts (Redis key session:{userId}:{sessionId}, scan/mget), auth.service.ts (register/login/refresh/logout/forgot/reset/change/verifyEmail/getIpHistory + Google OAuth upsert; password change/reset revoke all sessions; welcome email on verify), email.service.ts (Resend templates verify/reset/changed/welcome).
+- Middleware: rateLimiter.middleware.ts (Redis store), csrf.middleware.ts (issue/verify/rotate with failure threshold), activity.middleware.ts (best-effort lastActivity + ipHistory throttle), auth.middleware.ts (refresh-token auth), validate.middleware.ts (Zod → ValidationError), errorHandler.ts.
+- Routes/controllers/validators: backend/src/routes/auth.routes.ts wires CSRF + rate limiters + Zod + authenticateRefreshToken where needed; Google routes only mounted when isGoogleOAuthEnabled. Controllers in backend/src/controllers/auth.controller.ts set/clear HTTP-only cookies and CSRF; validators in backend/src/validators/auth.validators.ts.
 
 ## Workflows & Tooling
 
-- Backend scripts: npm run dev (tsx watch), npm run build (tsc), npm start (run dist), npm run lint, npm run format, npm run format:check. Husky + lint-staged enforce lint --max-warnings=0 and format:check on staged TS.
-- Logs written to logs/ (combined/error/exception) via logger.ts. Health check at /health returns Mongo/Redis status; keep it cheap and unauthenticated.
+- Commands: npm run dev (tsx watch), npm run build (tsc -p tsconfig.build.json), npm start (dist), npm run lint, npm run format, npm run format:check, npm run test (vitest). Husky pre-commit runs lint-staged (lint --max-warnings=0, format:check on staged TS).
+- Tests: Vitest + supertest; integration in backend/tests/integration; CSRF unit tests in backend/tests/middleware. Tests expect env set; Google strategy is skipped if GOOGLE_CLIENT_ID/SECRET missing.
+- Logs/health: /health returns Mongo/Redis status; Winston logs to logs/.
 
 ## Patterns & Gotchas
 
-- New endpoint: add types → Zod schema → service (throws AppError) → controller with asyncHandler → route with validator + rate limiter + CSRF as needed.
-- Use env.apiBasePath when mounting routes; keep cookies HTTP-only/secure/sameSite from env. Do not read process.env directly.
-- Redis session TTL from env.redisSessionTtl; revoke or rotate refresh tokens via session.service helpers. Refresh compares stored token; mismatches revoke session.
-- IP history keeps latest 10 and updates in login and activity middleware (throttled). Password hashing runs only when password is set/modified; password field is select:false.
-- Avoid creating duplicate Mongo indexes—unique constraints already on schema fields; secondary indexes are defined explicitly in models.
-
-## Roadmap Snapshot
-
-- Completed: errors/async/rate limiting, role/user models + seeding, Husky/lint-staged, CSRF + HTTPS enforcement, hashed password-reset tokens, last-activity middleware.
-- In progress/next: Phase 2.9 auth core/i18n expansion (en/fr locales, translated errors/responses) and email delivery integration for reset/verify.
+- Endpoint flow: types → Zod schema → service (throw AppError) → controller (asyncHandler) → route (rate limit + CSRF + validate + auth). Controllers remain thin/stateless.
+- Cookies: use env cookieSecure/sameSite/cookieMaxAge; access/refresh tokens are HTTP-only; CSRF token cookie is non-HTTP-only and rotated in csrf.middleware.
+- Sessions: Redis TTL from env.redisSessionTtl; refresh verifies stored token, revokes on mismatch. Password reset/change revoke all sessions.
+- Activity/IP: touchLastActivity best-effort; ipHistory capped at 10 (merge helper in auth.service).
+- OAuth: Google strategy optional—guarded by env; routes absent when disabled to keep tests green.
+- Upcoming roadmap: 2FA, auth middleware for access tokens, RBAC, caching, i18n.

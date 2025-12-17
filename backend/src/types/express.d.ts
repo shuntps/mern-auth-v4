@@ -6,8 +6,10 @@ declare global {
       csrfToken?: string;
       auth?: {
         userId: string;
-        sessionId: string;
-        refreshToken: string;
+        role?: string;
+        sessionId?: string;
+        accessToken?: string;
+        refreshToken?: string;
       };
     }
   }
