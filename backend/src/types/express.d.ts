@@ -1,5 +1,6 @@
 import 'express';
 import { type UserRole } from '@custom-types/user.types';
+import { type TranslateFn } from '@config/i18n';
 
 declare global {
   namespace Express {
@@ -16,6 +17,13 @@ declare global {
       };
       clientIp?: string;
       requestFingerprint?: string;
+      locale?: string;
+      t?: TranslateFn;
+    }
+
+    interface Request {
+      locale?: string;
+      t?: TranslateFn;
     }
   }
 }

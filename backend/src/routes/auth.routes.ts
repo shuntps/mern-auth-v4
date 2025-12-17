@@ -57,21 +57,21 @@ router.post(
   '/auth/register',
   authLimiter,
   verifyCsrfToken,
-  validate(registerSchema),
+  validate({ body: registerSchema }),
   authController.register
 );
 router.post(
   '/auth/verify-email',
   authLimiter,
   verifyCsrfToken,
-  validate(verifyEmailSchema),
+  validate({ body: verifyEmailSchema }),
   authController.verifyEmail
 );
 router.post(
   '/auth/login',
   loginLimiter,
   verifyCsrfToken,
-  validate(loginSchema),
+  validate({ body: loginSchema }),
   authController.login
 );
 router.post('/auth/logout', authLimiter, verifyCsrfToken, authController.logout);
@@ -80,14 +80,14 @@ router.post(
   '/auth/forgot-password',
   passwordResetLimiter,
   verifyCsrfToken,
-  validate(forgotPasswordSchema),
+  validate({ body: forgotPasswordSchema }),
   authController.forgotPassword
 );
 router.post(
   '/auth/reset-password',
   passwordResetLimiter,
   verifyCsrfToken,
-  validate(resetPasswordSchema),
+  validate({ body: resetPasswordSchema }),
   authController.resetPassword
 );
 router.post(
@@ -95,7 +95,7 @@ router.post(
   authLimiter,
   verifyCsrfToken,
   authenticateRefreshToken,
-  validate(changePasswordSchema),
+  validate({ body: changePasswordSchema }),
   authController.changePassword
 );
 
@@ -114,7 +114,7 @@ router.post(
   verifyCsrfToken,
   authenticateRefreshToken,
   authorize(),
-  validate(twoFactorVerifySchema),
+  validate({ body: twoFactorVerifySchema }),
   authController.verifyTwoFactor
 );
 
@@ -124,7 +124,7 @@ router.post(
   verifyCsrfToken,
   authenticateRefreshToken,
   authorize(),
-  validate(twoFactorDisableSchema),
+  validate({ body: twoFactorDisableSchema }),
   authController.disableTwoFactor
 );
 

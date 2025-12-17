@@ -9,6 +9,7 @@ import { helmetConfig } from '@config/security';
 import { connectDatabase, getDatabaseStatus } from '@config/database';
 import { getRedisStatus } from '@config/redis';
 import logger from '@config/logger';
+import { AppError } from '@utils/errors';
 import passport from '@config/oauth';
 import { errorHandler, notFoundHandler } from '@middleware/errorHandler';
 import { touchLastActivity } from '@middleware/activity.middleware';
@@ -16,6 +17,7 @@ import { generalLimiter } from '@middleware/rateLimiter.middleware';
 import { sanitizeRequest } from '@middleware/sanitize.middleware';
 import { requestLogger } from '@middleware/requestLogger.middleware';
 import { attachRequestFingerprint } from '@middleware/fingerprint.middleware';
+import { i18nMiddleware } from '@middleware/i18n.middleware';
 import routes from '@routes/index';
 import { seedDefaultRoles } from '@models/role.model';
 
@@ -46,8 +48,14 @@ export const createApp = (): Express => {
     })
   );
 
+  // Cookie parser
+  app.use(cookieParser());
+
+  // Locale detection and translation helpers
+  app.use(i18nMiddleware);
+
   // Enforce HTTPS in production (expects `trust proxy` set when behind a proxy)
-  app.use((req, res, next) => {
+  app.use((req, _res, next) => {
     if (!isProduction()) {
       next();
       return;
@@ -65,7 +73,7 @@ export const createApp = (): Express => {
       next();
       return;
     }
-    return res.status(400).json({ status: 'fail', message: 'Use HTTPS' });
+    next(new AppError('common.httpsRequired', 400));
   });
 
   // Compression middleware
@@ -74,9 +82,6 @@ export const createApp = (): Express => {
   // Body parsing middleware
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-  // Cookie parser
-  app.use(cookieParser());
 
   // Capture client IP and request fingerprint early
   app.use(attachRequestFingerprint);

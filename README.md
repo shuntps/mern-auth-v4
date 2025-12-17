@@ -26,6 +26,7 @@ A modern, production-ready MERN stack authentication system built with TypeScrip
 - 🔒 Password hashing with bcrypt (10 rounds)
 - 🔒 IP tracking and history
 - 🔒 Account ban/unban functionality
+- 🔒 Localized API errors (i18n, en/fr) with request-based locale detection
 
 #### Frontend contract: CSRF errors
 
@@ -227,6 +228,10 @@ GOOGLE_CLIENT_SECRET=your-google-client-secret
 TWO_FACTOR_APP_NAME=MERN Auth v4
 TWO_FACTOR_ISSUER=mernauth.com
 TWO_FACTOR_TEMP_SECRET_TTL=600
+
+# i18n
+SUPPORTED_LANGUAGES=en,fr
+DEFAULT_LANGUAGE=en
 ```
 
 ### Frontend (.env)
@@ -271,6 +276,10 @@ npm run format     # Format with Prettier
 Once the backend is running, visit:
 
 - Swagger UI: `http://localhost:5000/api-docs`
+- Profile endpoints (cookie + CSRF protected):
+  - GET `/api/users/profile` — return authenticated user
+  - PATCH `/api/users/profile` — update `firstName`/`lastName` (one required)
+  - DELETE `/api/users/account` — verify password, revoke sessions, delete account
 
 ## 🎯 User Roles
 
@@ -313,6 +322,7 @@ For detailed development instructions, see:
 - [ROADMAP.md](ROADMAP.md) - Development roadmap with milestones
 - [.github/copilot-instructions.md](.github/copilot-instructions.md) - AI agent guidelines
 - [docs/MERN_AUTH_V4-PROJECT.md](docs/MERN_AUTH_V4-PROJECT.md) - Project specifications
+- [docs/i18n.md](docs/i18n.md) - Backend internationalization guide
 
 ## 🎉 Acknowledgments
 

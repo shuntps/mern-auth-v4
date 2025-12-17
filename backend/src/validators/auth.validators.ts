@@ -2,35 +2,29 @@ import { z } from 'zod';
 
 const passwordSchema = z
   .string()
-  .min(8, 'Password must be at least 8 characters')
-  .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-  .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-  .regex(/[0-9]/, 'Password must contain at least one number')
-  .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character');
+  .min(8, 'validation.password.min')
+  .regex(/[A-Z]/, 'validation.password.uppercase')
+  .regex(/[a-z]/, 'validation.password.lowercase')
+  .regex(/[0-9]/, 'validation.password.number')
+  .regex(/[^A-Za-z0-9]/, 'validation.password.special');
 
-const emailSchema = z.email({ message: 'Invalid email address' });
+const emailSchema = z.email({ message: 'validation.email' });
 
 export const registerSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
-  firstName: z
-    .string()
-    .min(1, 'First name is required')
-    .max(50, 'First name cannot exceed 50 characters'),
-  lastName: z
-    .string()
-    .min(1, 'Last name is required')
-    .max(50, 'Last name cannot exceed 50 characters'),
+  firstName: z.string().min(1, 'validation.required.firstName').max(50, 'validation.max.firstName'),
+  lastName: z.string().min(1, 'validation.required.lastName').max(50, 'validation.max.lastName'),
 });
 
 const twoFactorCodeSchema = z
   .string()
   .trim()
-  .regex(/^\d{6}$/u, 'Two-factor code must be 6 digits');
+  .regex(/^\d{6}$/u, 'validation.format.twoFactorCode');
 
 export const loginSchema = z.object({
   email: emailSchema,
-  password: z.string().min(1, 'Password is required'),
+  password: z.string().min(1, 'validation.required.password'),
   twoFactorCode: twoFactorCodeSchema.optional(),
 });
 
@@ -39,17 +33,17 @@ export const forgotPasswordSchema = z.object({
 });
 
 export const resetPasswordSchema = z.object({
-  token: z.string().min(1, 'Reset token is required'),
+  token: z.string().min(1, 'validation.required.token'),
   newPassword: passwordSchema,
 });
 
 export const changePasswordSchema = z.object({
-  oldPassword: z.string().min(1, 'Current password is required'),
+  oldPassword: z.string().min(1, 'validation.required.oldPassword'),
   newPassword: passwordSchema,
 });
 
 export const verifyEmailSchema = z.object({
-  token: z.string().min(1, 'Verification token is required'),
+  token: z.string().min(1, 'validation.required.token'),
 });
 
 export const twoFactorVerifySchema = z.object({

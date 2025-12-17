@@ -151,7 +151,7 @@ export const registerUser = async (params: {
   const normalizedEmail = params.email.toLowerCase();
   const existing = await User.findOne({ email: normalizedEmail });
   if (existing) {
-    throw new ConflictError('User already exists');
+    throw new ConflictError('errors.userExists');
   }
 
   const user = await User.create({
@@ -179,7 +179,7 @@ export const registerAndAuthenticate = async (
   const normalizedEmail = params.email.toLowerCase();
   const existing = await User.findOne({ email: normalizedEmail });
   if (existing) {
-    throw new ConflictError('User already exists');
+    throw new ConflictError('errors.userExists');
   }
 
   const user = new User({
@@ -218,40 +218,40 @@ export const loginUser = async (
   const user = await User.findOne({ email: normalizedEmail }).select('+password +twoFactorSecret');
   if (!user || !user.password) {
     await incrementFailedLoginAttempt(normalizedEmail);
-    throw new AuthenticationError('Invalid credentials');
+    throw new AuthenticationError('errors.invalidCredentials');
   }
 
   if (user.isBanned) {
     await incrementFailedLoginAttempt(normalizedEmail);
-    throw new AuthenticationError('Account is banned');
+    throw new AuthenticationError('errors.accountBanned');
   }
 
   if (!user.isEmailVerified) {
     await incrementFailedLoginAttempt(normalizedEmail);
-    throw new AuthenticationError('Email not verified');
+    throw new AuthenticationError('errors.emailNotVerified');
   }
 
   const isMatch = await user.comparePassword(password);
   if (!isMatch) {
     await incrementFailedLoginAttempt(normalizedEmail);
-    throw new AuthenticationError('Invalid credentials');
+    throw new AuthenticationError('errors.invalidCredentials');
   }
 
   if (user.twoFactorEnabled) {
     if (!user.twoFactorSecret) {
       await incrementFailedLoginAttempt(normalizedEmail);
-      throw new AuthenticationError('Two-factor authentication is not configured');
+      throw new AuthenticationError('errors.twoFactorNotConfigured');
     }
 
     if (!twoFactorCode) {
       await incrementFailedLoginAttempt(normalizedEmail);
-      throw new AuthenticationError('Two-factor code required');
+      throw new AuthenticationError('errors.twoFactorRequired');
     }
 
     const isTwoFactorValid = verifyTwoFactorToken(user.twoFactorSecret, twoFactorCode);
     if (!isTwoFactorValid) {
       await incrementFailedLoginAttempt(normalizedEmail);
-      throw new AuthenticationError('Invalid two-factor code');
+      throw new AuthenticationError('errors.twoFactorInvalid');
     }
   }
 
@@ -280,11 +280,11 @@ export const startTwoFactorSetup = async (
 }> => {
   const user = await User.findById(userId);
   if (!user) {
-    throw new AuthenticationError('User not found');
+    throw new AuthenticationError('errors.userNotFound');
   }
 
   if (user.twoFactorEnabled) {
-    throw new ConflictError('Two-factor authentication is already enabled');
+    throw new ConflictError('errors.twoFactorAlreadyEnabled');
   }
 
   const secret = speakeasy.generateSecret({
@@ -293,7 +293,7 @@ export const startTwoFactorSetup = async (
   });
 
   if (!secret.base32 || !secret.otpauth_url) {
-    throw new AppError('Failed to generate two-factor secret', 500);
+    throw new AppError('errors.internal', 500);
   }
 
   const pendingSecret: TwoFactorSetupRecord = { secret: secret.base32 };
@@ -318,19 +318,19 @@ export const verifyTwoFactorSetup = async (userId: string, token: string): Promi
   const rawSecret = await redisClient.get(setupKey);
 
   if (!rawSecret) {
-    throw new AuthenticationError('Two-factor setup not found or expired');
+    throw new AuthenticationError('errors.twoFactorSetupMissing');
   }
 
   const parsed = JSON.parse(rawSecret) as TwoFactorSetupRecord;
   const isValid = verifyTwoFactorToken(parsed.secret, token);
   if (!isValid) {
-    throw new AuthenticationError('Invalid two-factor code');
+    throw new AuthenticationError('errors.twoFactorInvalid');
   }
 
   const user = await User.findById(userId).select('+twoFactorSecret');
   if (!user) {
     await redisClient.del(setupKey);
-    throw new AuthenticationError('User not found');
+    throw new AuthenticationError('errors.userNotFound');
   }
 
   user.twoFactorEnabled = true;
@@ -345,16 +345,16 @@ export const verifyTwoFactorSetup = async (userId: string, token: string): Promi
 export const disableTwoFactor = async (userId: string, token: string): Promise<AuthUser> => {
   const user = await User.findById(userId).select('+twoFactorSecret');
   if (!user) {
-    throw new AuthenticationError('User not found');
+    throw new AuthenticationError('errors.userNotFound');
   }
 
   if (!user.twoFactorEnabled || !user.twoFactorSecret) {
-    throw new ConflictError('Two-factor authentication is not enabled');
+    throw new ConflictError('errors.twoFactorNotEnabled');
   }
 
   const isValid = verifyTwoFactorToken(user.twoFactorSecret, token);
   if (!isValid) {
-    throw new AuthenticationError('Invalid two-factor code');
+    throw new AuthenticationError('errors.twoFactorInvalid');
   }
 
   user.twoFactorEnabled = false;
@@ -371,22 +371,22 @@ export const refreshTokens = async (
 ): Promise<AuthTokens & { payload: RefreshTokenPayload; user: AuthUser }> => {
   const payload = verifyRefreshToken(refreshToken);
   if (!payload.sessionId) {
-    throw new AuthenticationError('Invalid refresh token');
+    throw new AuthenticationError('errors.invalidSession');
   }
 
   const session = await getSession(payload.sub, payload.sessionId);
   if (!session) {
-    throw new AuthenticationError('Session expired');
+    throw new AuthenticationError('errors.sessionExpired');
   }
 
   if (session.refreshToken !== refreshToken) {
     await revokeSession(payload.sub, payload.sessionId, 'refresh-token-mismatch');
-    throw new AuthenticationError('Session token mismatch');
+    throw new AuthenticationError('errors.sessionMismatch');
   }
 
   const user = await User.findById(payload.sub);
   if (!user) {
-    throw new AuthenticationError('User not found');
+    throw new AuthenticationError('errors.userNotFound');
   }
 
   const accessToken = generateAccessToken(user._id.toString(), user.role.toString());
@@ -434,13 +434,13 @@ export const resetPasswordWithToken = async (token: string, newPassword: string)
   const key = buildPasswordResetKey(tokenHash);
   const raw = await redisClient.get(key);
   if (!raw) {
-    throw new AuthenticationError('Invalid or expired reset token');
+    throw new AuthenticationError('errors.invalidResetToken');
   }
 
   const record = JSON.parse(raw) as PasswordResetRecord;
   const user = await User.findById(record.userId).select('+password');
   if (!user) {
-    throw new AuthenticationError('User not found');
+    throw new AuthenticationError('errors.userNotFound');
   }
 
   user.password = newPassword;
@@ -457,26 +457,26 @@ export const changePassword = async (
   newPassword: string
 ): Promise<void> => {
   if (!refreshToken) {
-    throw new AuthenticationError('Not authenticated');
+    throw new AuthenticationError('errors.notAuthenticated');
   }
 
   const payload: AccessTokenPayload | RefreshTokenPayload = verifyRefreshToken(refreshToken);
   if (!('sessionId' in payload) || !payload.sessionId) {
-    throw new AuthenticationError('Invalid session');
+    throw new AuthenticationError('errors.invalidSession');
   }
 
   const user = await User.findById(payload.sub).select('+password');
   if (!user || !user.password) {
-    throw new AuthenticationError('Invalid credentials');
+    throw new AuthenticationError('errors.invalidCredentials');
   }
 
   const isMatch = await bcrypt.compare(oldPassword, user.password);
   if (!isMatch) {
-    throw new AuthenticationError('Invalid credentials');
+    throw new AuthenticationError('errors.invalidCredentials');
   }
 
   if (oldPassword === newPassword) {
-    throw new ValidationError('New password must be different from current password');
+    throw new ValidationError('errors.passwordSame');
   }
 
   user.password = newPassword;
@@ -492,14 +492,14 @@ export const verifyEmailWithToken = async (token: string): Promise<AuthUser> => 
   const raw = await redisClient.get(key);
 
   if (!raw) {
-    throw new AuthenticationError('Invalid or expired verification token');
+    throw new AuthenticationError('errors.invalidVerificationToken');
   }
 
   const record = JSON.parse(raw) as PasswordResetRecord;
   const user = await User.findById(record.userId);
   if (!user) {
     await redisClient.del(key);
-    throw new AuthenticationError('User not found');
+    throw new AuthenticationError('errors.userNotFound');
   }
 
   if (!user.isEmailVerified) {
@@ -516,7 +516,7 @@ export const verifyEmailWithToken = async (token: string): Promise<AuthUser> => 
 export const getUserIpHistory = async (userId: string): Promise<string[]> => {
   const user = await User.findById(userId).select('ipHistory');
   if (!user) {
-    throw new AuthenticationError('User not found');
+    throw new AuthenticationError('errors.userNotFound');
   }
   return user.ipHistory;
 };
@@ -529,7 +529,7 @@ export const authenticateWithGoogle = async (
   const googleId = profile.id;
 
   if (!email) {
-    throw new AuthenticationError('Google account does not provide an email');
+    throw new AuthenticationError('errors.googleEmailMissing');
   }
 
   let user = await User.findOne({ googleId });
@@ -550,7 +550,7 @@ export const authenticateWithGoogle = async (
   });
 
   if (user.isBanned) {
-    throw new AuthenticationError('Account is banned');
+    throw new AuthenticationError('errors.accountBanned');
   }
 
   user.isEmailVerified = true;

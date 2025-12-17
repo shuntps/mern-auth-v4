@@ -7,6 +7,7 @@ import { Request, Response, NextFunction } from 'express';
 import { AppError, NotFoundError } from '@utils/errors';
 import logger from '@config/logger';
 import { isDevelopment } from '@config/env';
+import i18n, { type TranslateFn, type TranslationKey } from '@config/i18n';
 
 /**
  * Express error handling middleware
@@ -23,13 +24,18 @@ export const errorHandler = (
 
   // Default error values
   let statusCode = 500;
-  let message = 'Internal server error';
+  let messageKey: TranslationKey = 'errors.internal';
+  let params = undefined;
 
   // If it's an operational error, use its properties
   if (err instanceof AppError) {
     statusCode = err.statusCode;
-    message = err.message;
+    messageKey = err.messageKey;
+    params = err.params;
   }
+
+  const translator: TranslateFn = res.locals.t ?? req.t ?? i18n.getTranslator(res.locals.locale);
+  const resolvedMessage = translator(messageKey, params);
 
   // Log error with context
   const errorLog = {
@@ -54,17 +60,20 @@ export const errorHandler = (
   interface ErrorResponse {
     status: string;
     message: string;
+    key: TranslationKey;
     details?: unknown;
     stack?: string;
+    code?: string;
   }
 
   // Use toJSON method for AppError instances to get consistent response format
   const errorResponse: ErrorResponse =
     err instanceof AppError
-      ? (err.toJSON() as ErrorResponse)
+      ? ({ ...err.toJSON(), message: resolvedMessage } as ErrorResponse)
       : {
           status: 'error',
-          message,
+          message: resolvedMessage,
+          key: messageKey,
         };
 
   // Include stack trace only in development mode and for programming errors
@@ -81,6 +90,8 @@ export const errorHandler = (
  * Should be registered BEFORE the error handler
  */
 export const notFoundHandler = (req: Request, _res: Response, next: NextFunction): void => {
-  const error = new NotFoundError(`Route not found: ${req.method} ${req.originalUrl}`);
+  const error = new NotFoundError('errors.notFound', {
+    route: `${req.method} ${req.originalUrl}`,
+  });
   next(error);
 };

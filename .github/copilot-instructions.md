@@ -1,33 +1,20 @@
-# MERN Auth v4 — AI Agent Instructions
+## MERN Auth v4 — AI Agent Instructions
 
-## Architecture & Flow
-- Backend focus: Express 5 + TypeScript. Flow is routes (declarative) → validators (Zod) → controllers (wrapped in asyncHandler) → services; centralized errors. JWT (15m access, 7d refresh) + Redis sessions.
-- Security stack: helmet (strict CSP/HSTS via config/security.ts), HTTPS enforcement in prod (trust proxy), rate limiting (Redis), CSRF double-submit with rotation/failure threshold, HTTP-only access/refresh cookies.
-- Request pipeline in backend/src/index.ts: helmet → cors → HTTPS guard → parsers → cookies → sanitize.middleware → passport → activity.middleware → requestLogger → morgan → generalLimiter → routes → notFoundHandler → errorHandler.
-
-## Conventions & Non-Negotiables
-- Strict TS; path aliases from backend/tsconfig: @config/*, @controllers/*, @services/*, @models/*, @routes/*, @middleware/*, @utils/*, @custom-types/*, @validators/*.
-- Only read env via config/env.ts (call validateEnv). Never use process.env elsewhere.
-- Errors: throw AppError subclasses in utils/errors.ts; centralized handler formats responses. Services stay framework-agnostic.
-- Routes stay declarative—no controller wrapping; compose middlewares in order (rate limit → CSRF → validate → auth/authorize → controller).
-
-## Key Files & Responsibilities
-- bootstrap: backend/src/index.ts (trust proxy, helmet config, sanitize, request logging, rate limiting, route mount, /health, error wiring, role seeding).
-- config: env.ts, database.ts, redis.ts, logger.ts (Winston logs/), oauth.ts (conditional Google strategy), security.ts (helmet/CSP/HSTS), security headers set hidePoweredBy.
-- models/types: role.model.ts (seeded hierarchy user < admin < super-admin), user.model.ts (bcrypt hooks, passwordChangedAt, ipHistory cap 10, googleId), types/user.types.ts, types/express.d.ts (locals.csrfToken/auth shape).
-- services: token.service.ts (typed JWT), session.service.ts (Redis session:{userId}:{sessionId}), auth.service.ts (register/login/refresh/logout/forgot/reset/change/verifyEmail/ipHistory, 2FA start/verify/disable, Google OAuth upsert), email.service.ts (Resend templates verify/reset/changed/welcome).
-- middleware: rateLimiter.middleware.ts, csrf.middleware.ts (issue/verify/rotate + block threshold), activity.middleware.ts (best-effort lastActivity/IP), auth.middleware.ts (access/optional/refresh load role/banned/passwordChangedAt), authorize.middleware.ts (role/permission hierarchy), validate.middleware.ts (schema map body/query/params/headers/cookies → ValidationError), sanitize.middleware.ts (basic XSS strip), requestLogger.middleware.ts (Winston structured log), errorHandler.ts.
-- routes: routes/index.ts mounts auth.routes.ts; auth.routes wires limiters + CSRF + validate + auth/authorize; Google routes only when isGoogleOAuthEnabled.
-- validators/controllers: validators in validators/auth.validators.ts; controllers in controllers/auth.controller.ts set/clear cookies and CSRF tokens.
-
-## Workflows & Commands
-- Backend scripts: npm run dev (tsx watch), npm run build (tsc -p tsconfig.build.json), npm start (dist), npm run lint, npm run format, npm run format:check, npm run test (Vitest).
-- Tests: Vitest + supertest; integration in backend/tests/integration, middleware unit tests in backend/tests/middleware (CSRF). Google OAuth tests auto-skip if env missing.
-- Husky: lint-staged enforces `npm run lint -- --max-warnings=0` and `npm run format:check` on staged TS.
-- Logs/health: /health reports Mongo/Redis status; Winston logs to logs/ (requestLogger uses locals.auth metadata).
-
-## Patterns & Gotchas
-- CSRF contract: on block, errors include code CSRF_BLOCKED + Retry-After header + details.retryAfterSeconds; see docs/frontend-csrf.md.
-- Cookies/tokens: use env cookieSecure/sameSite/cookieMaxAge; CSRF cookie is non-HTTP-only and rotates on verify; refresh routes validate Redis session + stored refresh token.
-- Role/permissions: authorize middleware uses hierarchy; place after auth middleware when role/permissions needed.
-- Sanitization occurs before logging; validation uses safeParse and returns typed data into req.*; keep schemas strict to avoid unexpected passes.
+- **Architecture**: Backend is Express 5 + TypeScript. Flow: declarative routes → Zod validators → middleware stack → controllers (asyncHandler) → services → centralized errors. JWT access (15m) and refresh (7d) tokens with Redis-backed sessions.
+- **Pipeline order**: See [backend/src/index.ts](backend/src/index.ts): helmet (CSP/HSTS) → CORS → HTTPS guard → parsers → cookies → sanitize.middleware → passport → activity.middleware → requestLogger → morgan → generalLimiter → routes → notFoundHandler → errorHandler. Do not reorder.
+- **Env & aliases**: Load env only via [backend/src/config/env.ts](backend/src/config/env.ts) (validateEnv). Use TS path aliases (@config/@services/@controllers/@middleware/@models/@utils/@validators); avoid direct process.env reads elsewhere.
+- **Auth cookies & tokens**: Controllers issue/clear access/refresh/CSRF cookies; CSRF is double-submit (cookie + header) with rotation and block threshold; refresh requires matching Redis session and stored refresh token.
+- **i18n**: [backend/src/config/i18n.ts](backend/src/config/i18n.ts) holds translations and typed keys. [backend/src/middleware/i18n.middleware.ts](backend/src/middleware/i18n.middleware.ts) sets `req.locale` and translators; [backend/src/middleware/errorHandler.ts](backend/src/middleware/errorHandler.ts) translates `messageKey`/`params`. Validation middleware maps Zod issues to translation keys; controllers/services must use keys, not raw strings.
+- **Errors**: Throw AppError subclasses from [backend/src/utils/errors.ts](backend/src/utils/errors.ts); handler shapes JSON with code/status/message/details and sets CSRF Retry-After when blocked. Services stay framework-agnostic.
+- **Security stack**: Helmet/CSP/HSTS ([backend/src/config/security.ts](backend/src/config/security.ts)), HTTPS in prod (trust proxy), rate limiting via Redis, CSRF double-submit, HTTP-only cookies with env-driven sameSite/secure/maxAge, sanitize before logging.
+- **Routes & middleware ordering**: Keep routes declarative. Common chain: limiter → CSRF → validate({ body/query/... }) → auth middleware (access/optional/refresh) → authorize (role/permission) → controller. Google OAuth routes mount only when enabled in [backend/src/config/oauth.ts](backend/src/config/oauth.ts).
+- **Controllers**: Located in [backend/src/controllers](backend/src/controllers); assume validated data from validate.middleware (typed via types/express.d.ts); never re-parse schemas. Controllers set/clear cookies and return localized messages using translation keys.
+- **Services**: [backend/src/services/auth.service.ts](backend/src/services/auth.service.ts) covers register/login/refresh/logout/forgot/reset/change/verifyEmail, 2FA, Google OAuth upsert, IP history; [backend/src/services/session.service.ts](backend/src/services/session.service.ts) manages Redis `session:{userId}:{sessionId}`; [backend/src/services/token.service.ts](backend/src/services/token.service.ts) issues typed JWTs; [backend/src/services/email.service.ts](backend/src/services/email.service.ts) sends Resend templates.
+- **Models**: [backend/src/models/role.model.ts](backend/src/models/role.model.ts) seeds hierarchy user < admin < super-admin. [backend/src/models/user.model.ts](backend/src/models/user.model.ts) uses bcrypt hooks, tracks passwordChangedAt and IP history (cap 10), supports googleId.
+- **Validation**: Zod schemas in [backend/src/validators/auth.validators.ts](backend/src/validators/auth.validators.ts); validate.middleware accepts schema maps (body/query/params/headers/cookies) and injects typed data to req.\*. Validation errors become ValidationError with translation keys.
+- **Logging**: Structured via Winston in [backend/src/config/logger.ts](backend/src/config/logger.ts); requestLogger adds auth metadata before morgan; logs stored under logs/.
+- **Docs & contracts**: CSRF behavior in [docs/frontend-csrf.md](docs/frontend-csrf.md); i18n approach in [docs/i18n.md](docs/i18n.md); roadmap in [ROADMAP.md](ROADMAP.md).
+- **Workflows**: Backend scripts: `npm run dev` (tsx watch), `npm run build` (tsconfig.build), `npm start` (dist), `npm run lint`, `npm run format`, `npm run format:check`, `npm run test` (Vitest + supertest). Husky/lint-staged enforce lint + format:check on staged TS.
+- **Testing**: Integration tests in [backend/tests/integration](backend/tests/integration); middleware unit tests (CSRF) in [backend/tests/middleware](backend/tests/middleware). Google OAuth tests auto-skip if env vars absent.
+- **Frontend contract**: Frontend lives in frontend/ (React/Vite/Tailwind/Zustand/i18n). Keep API contracts intact (cookies, CSRF headers, localized error codes/messages).
+- **Common pitfalls**: Do not bypass validate.middleware or re-run Zod in controllers; always use translation keys; preserve middleware order; avoid direct env reads; ensure CSRF Retry-After header when blocking; keep sanitize.middleware in-place mutation intact.

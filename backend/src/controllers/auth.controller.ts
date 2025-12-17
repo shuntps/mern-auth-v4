@@ -1,4 +1,5 @@
 import { type CookieOptions, type RequestHandler } from 'express';
+import { type z } from 'zod';
 import { asyncHandler } from '@utils/asyncHandler';
 import { AuthenticationError } from '@utils/errors';
 import { env } from '@config/env';
@@ -31,6 +32,15 @@ import {
   twoFactorDisableSchema,
 } from '@validators/auth.validators';
 
+type RegisterBody = z.infer<typeof registerSchema>;
+type LoginBody = z.infer<typeof loginSchema>;
+type ForgotPasswordBody = z.infer<typeof forgotPasswordSchema>;
+type ResetPasswordBody = z.infer<typeof resetPasswordSchema>;
+type VerifyEmailBody = z.infer<typeof verifyEmailSchema>;
+type ChangePasswordBody = z.infer<typeof changePasswordSchema>;
+type TwoFactorVerifyBody = z.infer<typeof twoFactorVerifySchema>;
+type TwoFactorDisableBody = z.infer<typeof twoFactorDisableSchema>;
+
 const buildCookieOptions = (maxAge: number): CookieOptions => ({
   httpOnly: true,
   secure: env.cookieSecure,
@@ -52,7 +62,7 @@ const buildOAuthRedirectUrl = (params?: { error?: string }): string => {
 };
 
 export const register: RequestHandler = asyncHandler(async (req, res) => {
-  const { email, password, firstName, lastName } = registerSchema.parse(req.body);
+  const { email, password, firstName, lastName } = req.body as RegisterBody;
   const { accessToken, refreshToken, user } = await registerAndAuthenticate(
     { email, password, firstName, lastName },
     buildSessionMetadata(req)
@@ -71,7 +81,7 @@ export const register: RequestHandler = asyncHandler(async (req, res) => {
 });
 
 export const login: RequestHandler = asyncHandler(async (req, res) => {
-  const { email, password, twoFactorCode } = loginSchema.parse(req.body);
+  const { email, password, twoFactorCode } = req.body as LoginBody;
 
   const { accessToken, refreshToken, user } = await loginUser(
     email,
@@ -95,7 +105,7 @@ export const login: RequestHandler = asyncHandler(async (req, res) => {
 export const refreshToken: RequestHandler = asyncHandler(async (req, res) => {
   const { refreshToken } = req.cookies as Record<string, string | undefined>;
   if (!refreshToken) {
-    throw new AuthenticationError('Refresh token missing');
+    throw new AuthenticationError('errors.refreshTokenMissing');
   }
 
   const { accessToken, refreshToken: newRefreshToken } = await refreshTokens(refreshToken);
@@ -125,21 +135,21 @@ export const logout: RequestHandler = asyncHandler(async (req, res) => {
 });
 
 export const forgotPassword: RequestHandler = asyncHandler(async (req, res) => {
-  const { email } = forgotPasswordSchema.parse(req.body);
+  const { email } = req.body as ForgotPasswordBody;
   await requestPasswordReset(email);
 
   res.status(200).json({ status: 'success' });
 });
 
 export const resetPassword: RequestHandler = asyncHandler(async (req, res) => {
-  const { token, newPassword } = resetPasswordSchema.parse(req.body);
+  const { token, newPassword } = req.body as ResetPasswordBody;
   await resetPasswordWithToken(token, newPassword);
 
   res.status(200).json({ status: 'success' });
 });
 
 export const verifyEmail: RequestHandler = asyncHandler(async (req, res) => {
-  const { token } = verifyEmailSchema.parse(req.body);
+  const { token } = req.body as VerifyEmailBody;
   const user = await verifyEmailWithToken(token);
 
   res.status(200).json({
@@ -157,7 +167,7 @@ export const getCsrfToken: RequestHandler = asyncHandler((_req, res) => {
 });
 
 export const changePassword: RequestHandler = asyncHandler(async (req, res) => {
-  const { oldPassword, newPassword } = changePasswordSchema.parse(req.body);
+  const { oldPassword, newPassword } = req.body as ChangePasswordBody;
   const authContext = res.locals.auth as { refreshToken?: unknown } | undefined;
   const refreshToken =
     typeof authContext?.refreshToken === 'string' ? authContext.refreshToken : undefined;
@@ -175,7 +185,7 @@ export const changePassword: RequestHandler = asyncHandler(async (req, res) => {
 export const getIpHistory: RequestHandler = asyncHandler(async (_req, res) => {
   const authContext = res.locals.auth as { userId?: string } | undefined;
   if (!authContext?.userId) {
-    throw new AuthenticationError('Not authenticated');
+    throw new AuthenticationError('errors.notAuthenticated');
   }
 
   const ipHistory = await getUserIpHistory(authContext.userId);
@@ -186,7 +196,7 @@ export const getIpHistory: RequestHandler = asyncHandler(async (_req, res) => {
 export const enableTwoFactor: RequestHandler = asyncHandler(async (_req, res) => {
   const authContext = res.locals.auth as { userId?: string } | undefined;
   if (!authContext?.userId) {
-    throw new AuthenticationError('Not authenticated');
+    throw new AuthenticationError('errors.notAuthenticated');
   }
 
   const setup = await startTwoFactorSetup(authContext.userId);
@@ -197,10 +207,10 @@ export const enableTwoFactor: RequestHandler = asyncHandler(async (_req, res) =>
 export const verifyTwoFactor: RequestHandler = asyncHandler(async (req, res) => {
   const authContext = res.locals.auth as { userId?: string } | undefined;
   if (!authContext?.userId) {
-    throw new AuthenticationError('Not authenticated');
+    throw new AuthenticationError('errors.notAuthenticated');
   }
 
-  const { token } = twoFactorVerifySchema.parse(req.body);
+  const { token } = req.body as TwoFactorVerifyBody;
   const user = await verifyTwoFactorSetup(authContext.userId, token);
 
   res.status(200).json({ status: 'success', data: { user } });
@@ -209,10 +219,10 @@ export const verifyTwoFactor: RequestHandler = asyncHandler(async (req, res) => 
 export const disableTwoFactor: RequestHandler = asyncHandler(async (req, res) => {
   const authContext = res.locals.auth as { userId?: string } | undefined;
   if (!authContext?.userId) {
-    throw new AuthenticationError('Not authenticated');
+    throw new AuthenticationError('errors.notAuthenticated');
   }
 
-  const { token } = twoFactorDisableSchema.parse(req.body);
+  const { token } = req.body as TwoFactorDisableBody;
   const user = await disableTwoFactorService(authContext.userId, token);
 
   res.status(200).json({ status: 'success', data: { user } });

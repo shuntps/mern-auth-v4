@@ -22,7 +22,7 @@ const signToken = (
   try {
     return jwt.sign(payload, secret, { expiresIn });
   } catch (error) {
-    throw new AppError('Failed to generate token', 500, false, error);
+    throw new AppError('errors.tokenGenerationFailed', 500, false, error);
   }
 };
 
@@ -50,7 +50,7 @@ const verifyToken = (token: string, secret: Secret): JwtPayload => {
   try {
     return jwt.verify(token, secret) as JwtPayload;
   } catch {
-    throw new AuthenticationError('Invalid or expired token');
+    throw new AuthenticationError('errors.tokenInvalid');
   }
 };
 

@@ -31,8 +31,26 @@ const sanitizeValue = (value: unknown): unknown => {
 
 export const sanitizeRequest = (req: Request, _res: Response, next: NextFunction): void => {
   req.body = sanitizeValue(req.body);
-  req.query = sanitizeValue(req.query) as typeof req.query;
-  req.params = sanitizeValue(req.params) as typeof req.params;
-  req.cookies = sanitizeValue(req.cookies) as typeof req.cookies;
+
+  const sanitizedQuery = sanitizeValue(req.query);
+  if (sanitizedQuery && typeof sanitizedQuery === 'object') {
+    Object.assign(req.query as Record<string, unknown>, sanitizedQuery as Record<string, unknown>);
+  }
+
+  const sanitizedParams = sanitizeValue(req.params);
+  if (sanitizedParams && typeof sanitizedParams === 'object') {
+    Object.assign(
+      req.params as Record<string, unknown>,
+      sanitizedParams as Record<string, unknown>
+    );
+  }
+
+  const sanitizedCookies = sanitizeValue(req.cookies);
+  if (sanitizedCookies && typeof sanitizedCookies === 'object') {
+    Object.assign(
+      req.cookies as Record<string, unknown>,
+      sanitizedCookies as Record<string, unknown>
+    );
+  }
   next();
 };

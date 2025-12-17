@@ -146,7 +146,7 @@ export const verifyCsrfToken = async (
       metric: 'csrf_blocked',
     });
     res.setHeader('Retry-After', env.loginAttemptTtl.toString());
-    throw new CsrfBlockedError('errors.csrf.blocked', env.loginAttemptTtl);
+    throw new CsrfBlockedError('errors.csrfBlocked', env.loginAttemptTtl);
   }
 
   const cookieToken = getCsrfCookie(req);
@@ -154,13 +154,13 @@ export const verifyCsrfToken = async (
 
   if (!cookieToken || !headerToken || cookieToken !== headerToken) {
     await logCsrfFailure(req, 'mismatch');
-    throw new AuthenticationError('errors.csrf.invalid');
+    throw new AuthenticationError('errors.csrfInvalid');
   }
 
   const exists = await tokenExists(cookieToken);
   if (!exists) {
     await logCsrfFailure(req, 'missing-store');
-    throw new AuthenticationError('errors.csrf.invalid');
+    throw new AuthenticationError('errors.csrfInvalid');
   }
 
   if (env.csrfRotateOnVerify) {

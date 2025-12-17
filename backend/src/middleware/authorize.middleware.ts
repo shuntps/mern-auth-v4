@@ -17,7 +17,7 @@ const isUserRole = (value: string): value is UserRole => {
 
 const getRoleInfo = async (roleId?: string): Promise<RoleInfo> => {
   if (!roleId) {
-    throw new AuthorizationError('Role is missing for this user');
+    throw new AuthorizationError('errors.roleMissing');
   }
 
   const cached = roleCache.get(roleId);
@@ -27,7 +27,7 @@ const getRoleInfo = async (roleId?: string): Promise<RoleInfo> => {
 
   const roleDoc = await Role.findById(roleId).select('name permissions').lean();
   if (!roleDoc || !isUserRole(roleDoc.name)) {
-    throw new AuthorizationError('Invalid or unknown role');
+    throw new AuthorizationError('errors.roleInvalid');
   }
 
   const roleInfo: RoleInfo = {
@@ -79,7 +79,7 @@ export const authorize = (...allowedRoles: UserRole[]) => {
     try {
       const authContext = res.locals.auth;
       if (!authContext?.userId) {
-        throw new AuthenticationError('Not authenticated');
+        throw new AuthenticationError('errors.notAuthenticated');
       }
 
       const roleInfo = await getRoleInfo(authContext.role);
@@ -95,7 +95,7 @@ export const authorize = (...allowedRoles: UserRole[]) => {
       );
 
       if (!isAllowed) {
-        throw new AuthorizationError('Access denied');
+        throw new AuthorizationError('errors.accessDenied');
       }
 
       next();
@@ -115,7 +115,7 @@ export const authorizePermissions = (
     try {
       const authContext = res.locals.auth;
       if (!authContext?.userId) {
-        throw new AuthenticationError('Not authenticated');
+        throw new AuthenticationError('errors.notAuthenticated');
       }
 
       const roleInfo = await getRoleInfo(authContext.role);
@@ -123,7 +123,7 @@ export const authorizePermissions = (
 
       const authorized = hasRequiredPermissions(roleInfo.permissions, requiredPermissions, mode);
       if (!authorized) {
-        throw new AuthorizationError('Missing required permissions');
+        throw new AuthorizationError('errors.missingPermissions');
       }
 
       next();

@@ -534,28 +534,28 @@ This roadmap outlines all steps for building a production-ready MERN stack authe
 
 ### 2.29.1 Internationalization (Backend i18n)
 
-- [ ] Implement backend i18n with locales `en` and `fr` (e.g., central message catalog and locale resolver)
-- [ ] Add middleware to resolve locale (Accept-Language header → fallback `en`)
-- [ ] Provide translated strings for errors, validation messages (Zod), and API responses
-- [ ] Refactor existing messages to use the i18n system (errors, validators, controllers)
+- [x] Implement backend i18n with locales `en` and `fr` (e.g., central message catalog and locale resolver)
+- [x] Add middleware to resolve locale (Accept-Language header → fallback `en`)
+- [x] Provide translated strings for errors, validation messages (Zod), and API responses
+- [x] Refactor existing messages to use the i18n system (errors, validators, controllers)
 
 ### 2.30 User Profile Management
 
-- [ ] Create user controller in `/src/controllers/user.controller.ts`
-- [ ] Implement `getProfile` controller (get own profile)
-- [ ] Implement `updateProfile` controller:
-  - [ ] Validate input with Zod
-  - [ ] Update allowed fields (firstName, lastName)
-  - [ ] Return updated user
-- [ ] Implement `deleteAccount` controller:
-  - [ ] Verify password
-  - [ ] Soft delete or hard delete user
-  - [ ] Revoke all sessions
-  - [ ] Return success response
-- [ ] Create user routes in `/src/routes/user.routes.ts`:
-  - [ ] `GET /api/users/profile` (protected)
-  - [ ] `PATCH /api/users/profile` (protected)
-  - [ ] `DELETE /api/users/account` (protected)
+- [x] Create user controller in `/src/controllers/user.controller.ts`
+- [x] Implement `getProfile` controller (get own profile)
+- [x] Implement `updateProfile` controller:
+  - [x] Validate input with Zod
+  - [x] Update allowed fields (firstName, lastName)
+  - [x] Return updated user
+- [x] Implement `deleteAccount` controller:
+  - [x] Verify password
+  - [x] Soft delete or hard delete user
+  - [x] Revoke all sessions
+  - [x] Return success response
+- [x] Create user routes in `/src/routes/user.routes.ts`:
+  - [x] `GET /api/users/profile` (protected)
+  - [x] `PATCH /api/users/profile` (protected)
+  - [x] `DELETE /api/users/account` (protected)
 
 ---
 

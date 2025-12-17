@@ -60,7 +60,7 @@ export const createSession = async (
     await redisClient.set(key, JSON.stringify(record), 'EX', ttlSeconds);
     return record;
   } catch (error) {
-    throw new AppError('Failed to create session', 500, false, error);
+    throw new AppError('errors.sessionCreateFailed', 500, false, error);
   }
 };
 
@@ -80,7 +80,7 @@ export const refreshSession = async (
 ): Promise<SessionRecord> => {
   const existing = await getSession(userId, sessionId);
   if (!existing) {
-    throw new AppError('Session not found', 404);
+    throw new AppError('errors.sessionNotFound', 404);
   }
 
   const updated: SessionRecord = {
@@ -96,7 +96,7 @@ export const refreshSession = async (
     await redisClient.set(key, JSON.stringify(updated), 'EX', ttlSeconds);
     return updated;
   } catch (error) {
-    throw new AppError('Failed to refresh session', 500, false, error);
+    throw new AppError('errors.sessionRefreshFailed', 500, false, error);
   }
 };
 
@@ -110,7 +110,7 @@ export const revokeSession = async (
     await redisClient.del(key);
     logger.info('Session revoked', { userId, sessionId, reason: reason ?? 'unspecified' });
   } catch (error) {
-    throw new AppError('Failed to revoke session', 500, false, error);
+    throw new AppError('errors.sessionRevokeFailed', 500, false, error);
   }
 };
 
@@ -121,7 +121,7 @@ export const revokeAllUserSessions = async (userId: string, reason?: string): Pr
     await redisClient.del(keys);
     logger.info('All user sessions revoked', { userId, reason: reason ?? 'unspecified' });
   } catch (error) {
-    throw new AppError('Failed to revoke user sessions', 500, false, error);
+    throw new AppError('errors.sessionRevokeAllFailed', 500, false, error);
   }
 };
 

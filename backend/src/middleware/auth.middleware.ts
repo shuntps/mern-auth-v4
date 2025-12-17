@@ -31,26 +31,26 @@ export const authenticateRefreshToken = async (
   const { refreshToken } = req.cookies as Record<string, string | undefined>;
 
   if (!refreshToken) {
-    throw new AuthenticationError('Not authenticated');
+    throw new AuthenticationError('errors.notAuthenticated');
   }
 
   try {
     const payload = verifyRefreshToken(refreshToken);
     if (!payload.sessionId) {
-      throw new AuthenticationError('Invalid session');
+      throw new AuthenticationError('errors.invalidSession');
     }
 
     const user = await User.findById(payload.sub).select('role isBanned passwordChangedAt');
     if (!user) {
-      throw new AuthenticationError('User not found');
+      throw new AuthenticationError('errors.userNotFound');
     }
 
     if (user.isBanned) {
-      throw new AuthenticationError('Account is banned');
+      throw new AuthenticationError('errors.accountBanned');
     }
 
     if (payload.iat && user.changedPasswordAfter(payload.iat)) {
-      throw new AuthenticationError('Password recently changed, please login again');
+      throw new AuthenticationError('errors.passwordChanged');
     }
 
     setAuthContext(res, {
@@ -76,22 +76,22 @@ export const authenticateAccessToken = async (
   const token = bearer ?? cookieToken;
 
   if (!token) {
-    throw new AuthenticationError('Not authenticated');
+    throw new AuthenticationError('errors.notAuthenticated');
   }
 
   try {
     const payload = verifyAccessToken(token);
     const user = await User.findById(payload.sub).select('passwordChangedAt isBanned');
     if (!user) {
-      throw new AuthenticationError('User not found');
+      throw new AuthenticationError('errors.userNotFound');
     }
 
     if (user.isBanned) {
-      throw new AuthenticationError('Account is banned');
+      throw new AuthenticationError('errors.accountBanned');
     }
 
     if (payload.iat && user.changedPasswordAfter(payload.iat)) {
-      throw new AuthenticationError('Password recently changed, please login again');
+      throw new AuthenticationError('errors.passwordChanged');
     }
 
     setAuthContext(res, {
