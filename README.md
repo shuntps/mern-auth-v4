@@ -27,6 +27,11 @@ A modern, production-ready MERN stack authentication system built with TypeScrip
 - 🔒 IP tracking and history
 - 🔒 Account ban/unban functionality
 
+#### Frontend contract: CSRF errors
+
+- When CSRF validation is blocked by the failure threshold, the API returns an error with `code: CSRF_BLOCKED`, sets the `Retry-After` header (seconds), and includes `{ retryAfterSeconds }` in the error `details`.
+- See docs/frontend-csrf.md for a sample Axios interceptor that backs off on `CSRF_BLOCKED` using `Retry-After`, refreshes the CSRF token, and retries once.
+
 ### User Management
 
 - 👤 User profiles with avatar upload

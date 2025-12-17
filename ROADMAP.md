@@ -41,6 +41,8 @@ This roadmap outlines all steps for building a production-ready MERN stack authe
 
 ## Phase 2: Backend Development
 
+> Status note: Phase 2 is in progress. Do not advance to Phase 3 until the remaining auth flows are finished and tested (email verification, forgot/reset password, change-password, activity tracking fields, and route testing).
+
 ### 2.1 Backend Project Initialization
 
 - [x] Navigate to `backend` folder
@@ -80,9 +82,9 @@ This roadmap outlines all steps for building a production-ready MERN stack authe
 - [x] Create `eslint.config.mjs` configuration
 - [x] Install Prettier
 - [x] Create `.prettierrc` configuration
-- [ ] Install Husky for Git hooks
-- [ ] Configure pre-commit hooks (lint + format)
-- [ ] Install lint-staged
+- [x] Install Husky for Git hooks
+- [x] Configure pre-commit hooks (lint + format)
+- [x] Install lint-staged
 - [x] Add npm scripts: `dev`, `build`, `start`, `lint`, `format`, `format:check`
 
 ### 2.4 Environment Configuration
@@ -211,192 +213,198 @@ This roadmap outlines all steps for building a production-ready MERN stack authe
 
 ### 2.8 User Model & Schema
 
-- [ ] Create User interface in `/src/types/user.types.ts`
-- [ ] Create User schema in `/src/models/user.model.ts`
-- [ ] Add fields:
-  - [ ] email (unique, required, validated)
-  - [ ] password (hashed, required for local auth)
-  - [ ] firstName, lastName
-  - [ ] role (enum: user, admin, super-admin)
-  - [ ] isEmailVerified
-  - [ ] isBanned
-  - [ ] avatar (URL or path)
-  - [ ] googleId (for OAuth)
-  - [ ] twoFactorEnabled, twoFactorSecret
-  - [ ] passwordChangedAt
-  - [ ] lastLogin, lastActivity
-  - [ ] ipHistory (array of IP addresses)
-  - [ ] timestamps (createdAt, updatedAt)
-- [ ] Add password hashing pre-save hook (bcrypt)
-- [ ] Add method to compare passwords
-- [ ] Add indexes for performance
+- [x] Create Role model in `/src/models/role.model.ts`:
+  - [x] name (unique, required) - e.g., 'user', 'admin', 'super-admin'
+  - [x] permissions (array of strings)
+  - [x] description
+  - [x] timestamps
+  - [x] Seed default roles (user, admin, super-admin)
+- [x] Create User interface in `/src/types/user.types.ts`
+- [x] Create User schema in `/src/models/user.model.ts`
+- [x] Add fields:
+  - [x] email (unique, required, validated)
+  - [x] password (hashed, required for local auth)
+  - [x] firstName, lastName
+  - [x] role (ObjectId reference to Role model, required, default: 'user' role)
+  - [x] isEmailVerified
+  - [x] isBanned
+  - [x] avatar (URL or path)
+  - [x] googleId (for OAuth)
+  - [x] twoFactorEnabled, twoFactorSecret
+  - [x] passwordChangedAt
+  - [x] lastLogin, lastActivity
+  - [x] ipHistory (array of IP addresses)
+  - [x] timestamps (createdAt, updatedAt)
+- [x] Add password hashing pre-save hook (bcrypt)
+- [x] Add method to compare passwords
+- [x] Add indexes for performance (email, role)
 
 ### 2.9 Authentication - Core Setup
 
-- [ ] Install dependencies:
-  - [ ] bcrypt, @types/bcrypt
-  - [ ] jsonwebtoken, @types/jsonwebtoken
-  - [ ] cookie-parser, @types/cookie-parser
-  - [ ] zod for validation
-  - [ ] express-rate-limit, rate-limit-redis
+- [x] Install dependencies:
+  - [x] bcrypt, @types/bcrypt
+  - [x] jsonwebtoken, @types/jsonwebtoken
+  - [x] cookie-parser, @types/cookie-parser
+  - [x] zod for validation
+  - [x] express-rate-limit, rate-limit-redis
 
 ### 2.10 Authentication - Validation Schemas
 
-- [ ] Create Zod schemas in `/src/validators/auth.validators.ts`:
-  - [ ] Registration schema (email, password, firstName, lastName)
-  - [ ] Login schema (email, password)
-  - [ ] Forgot password schema (email)
-  - [ ] Reset password schema (token, newPassword)
-  - [ ] Change password schema (oldPassword, newPassword)
-- [ ] Password policy validation:
-  - [ ] Minimum 8 characters
-  - [ ] At least one uppercase letter
-  - [ ] At least one lowercase letter
-  - [ ] At least one number
-  - [ ] At least one special character
+- [x] Create Zod schemas in `/src/validators/auth.validators.ts`:
+  - [x] Registration schema (email, password, firstName, lastName)
+  - [x] Login schema (email, password)
+  - [x] Forgot password schema (email)
+  - [x] Reset password schema (token, newPassword)
+  - [x] Change password schema (oldPassword, newPassword)
+- [x] Password policy validation:
+  - [x] Minimum 8 characters
+  - [x] At least one uppercase letter
+  - [x] At least one lowercase letter
+  - [x] At least one number
+  - [x] At least one special character
 
 ### 2.11 Authentication - JWT Token Service
 
-- [ ] Create token service in `/src/services/token.service.ts`
-- [ ] Implement `generateAccessToken(userId, role)`
-- [ ] Implement `generateRefreshToken(userId)`
-- [ ] Implement `verifyAccessToken(token)`
-- [ ] Implement `verifyRefreshToken(token)`
-- [ ] Create token payload interface
+- [x] Create token service in `/src/services/token.service.ts`
+- [x] Implement `generateAccessToken(userId, role)`
+- [x] Implement `generateRefreshToken(userId)`
+- [x] Implement `verifyAccessToken(token)`
+- [x] Implement `verifyRefreshToken(token)`
+- [x] Create token payload interface
 
 ### 2.12 Authentication - Session Management with Redis
 
-- [ ] Create session service in `/src/services/session.service.ts`
-- [ ] Implement `createSession(userId, refreshToken, metadata)`
-  - [ ] Store in Redis with expiration
-  - [ ] Include IP address, user agent
-- [ ] Implement `getSession(sessionId)`
-- [ ] Implement `refreshSession(sessionId, newRefreshToken)`
-- [ ] Implement `revokeSession(sessionId)`
-- [ ] Implement `revokeAllUserSessions(userId)`
-- [ ] Implement `getActiveUserSessions(userId)`
-- [ ] Design Redis key schema: `session:{userId}:{sessionId}`
+- [x] Create session service in `/src/services/session.service.ts`
+- [x] Implement `createSession(userId, refreshToken, metadata)`
+  - [x] Store in Redis with expiration
+  - [x] Include IP address, user agent
+- [x] Implement `getSession(sessionId)`
+- [x] Implement `refreshSession(sessionId, newRefreshToken)`
+- [x] Implement `revokeSession(sessionId)`
+- [x] Implement `revokeAllUserSessions(userId)`
+- [x] Implement `getActiveUserSessions(userId)`
+- [x] Design Redis key schema: `session:{userId}:{sessionId}`
 
 ### 2.13 Authentication - Register Feature
 
 **Prerequisites: Phase 2.7.1 MUST be complete (error handler, asyncHandler, rate limiters)**
 
-- [ ] Create auth controller in `/src/controllers/auth.controller.ts`
-- [ ] Implement `register` controller:
-  - [ ] **Wrap controller with `asyncHandler` at export** (controller-level)
-  - [ ] Validate input with Zod
-  - [ ] Check if user exists (throw ConflictError if exists)
-  - [ ] Hash password with bcrypt
-  - [ ] Create user in MongoDB
-  - [ ] Generate email verification token
-  - [ ] Send verification email
-  - [ ] Return success response (no tokens yet)
-  - [ ] Throw errors on failure (never catch and respond)
-- [ ] Create auth routes in `/src/routes/auth.routes.ts`
-- [ ] Add `POST /api/auth/register` route (declarative pattern):
-  - [ ] Apply `authLimiter` rate limiting
-  - [ ] Apply Zod validation middleware
-  - [ ] Reference `authController.register` (already wrapped at controller level)
-  - [ ] **NEVER wrap controller in route file** - route must be declarative
-- [ ] Test register endpoint
-- [ ] Verify errors flow through centralized error handler
-- [ ] Verify rate limiting works
-- [ ] Verify route file remains clean and declarative
+- [x] Create auth controller in `/src/controllers/auth.controller.ts`
+- [x] Implement `register` controller:
+  - [x] **Wrap controller with `asyncHandler` at export** (controller-level)
+  - [x] Validate input with Zod
+  - [x] Check if user exists (throw ConflictError if exists)
+  - [x] Hash password with bcrypt
+  - [x] Create user in MongoDB
+  - [x] Generate email verification token
+  - [x] Send verification email
+  - [x] Return success response (tokens + csrf)
+  - [x] Throw errors on failure (never catch and respond)
+- [x] Create auth routes in `/src/routes/auth.routes.ts`
+- [x] Add `POST /api/auth/register` route (declarative pattern):
+  - [x] Apply `authLimiter` rate limiting
+  - [x] Apply Zod validation middleware in the route
+  - [x] Reference `authController.register` (already wrapped at controller level)
+  - [x] **NEVER wrap controller in route file** - route must be declarative
+- [x] Test register endpoint
+- [x] Verify errors flow through centralized error handler
+- [x] Verify rate limiting works
+- [x] Verify route file remains clean and declarative
 
 ### 2.14 Authentication - Email Verification
 
-- [ ] Install nodemailer (latest)
-- [ ] Create email service in `/src/services/email.service.ts`
-- [ ] Configure SMTP settings
-- [ ] Create email templates:
-  - [ ] Email verification template
-  - [ ] Password reset template
-  - [ ] Welcome email template
-- [ ] Implement `sendVerificationEmail(email, token)`
-- [ ] Create verification token (JWT or random string stored in Redis)
-- [ ] Add `POST /api/auth/verify-email` endpoint
-- [ ] Implement `verifyEmail` controller:
-  - [ ] Validate token
-  - [ ] Update user `isEmailVerified` to true
-  - [ ] Return success response
+- [x] Install Resend SDK (`resend`) and configure API key in env
+- [x] Create email service in `/src/services/email.service.ts` using Resend
+- [x] Configure sender domain/from address (Resend)
+- [x] Create email templates:
+  - [x] Email verification template
+  - [x] Password reset template
+  - [x] Welcome email template
+- [x] Implement `sendVerificationEmail(email, token)` via Resend
+- [x] Create verification token (JWT or random string stored in Redis)
+- [x] Add `POST /api/auth/verify-email` endpoint
+- [x] Implement `verifyEmail` controller:
+  - [x] Validate token
+  - [x] Update user `isEmailVerified` to true
+  - [x] Return success response
 
 ### 2.15 Authentication - Login Feature
 
-- [ ] Implement `login` controller:
-  - [ ] Validate input with Zod
-  - [ ] Find user by email
-  - [ ] Check if user is banned
-  - [ ] Verify password
-  - [ ] Check if email is verified
-  - [ ] Generate access and refresh tokens
-  - [ ] Create session in Redis
-  - [ ] Update lastLogin and lastActivity
-  - [ ] Track IP address in ipHistory
-  - [ ] Set HTTP-only secure cookies
-  - [ ] Return user data and access token
-- [ ] Add `POST /api/auth/login` route
+- [x] Implement `login` controller:
+  - [x] Validate input with Zod
+  - [x] Find user by email
+  - [x] Check if user is banned
+  - [x] Verify password
+  - [x] Check if email is verified
+  - [x] Generate access and refresh tokens
+  - [x] Create session in Redis
+  - [x] Update lastLogin and lastActivity
+  - [x] Track IP address in ipHistory
+  - [x] Set HTTP-only secure cookies
+  - [x] Return user data and access token
+- [x] Add `POST /api/auth/login` route
 
 ### 2.16 Authentication - Logout Feature
 
-- [ ] Implement `logout` controller:
-  - [ ] Extract session ID from refresh token or cookie
-  - [ ] Revoke session in Redis
-  - [ ] Clear cookies
-  - [ ] Return success response
-- [ ] Add `POST /api/auth/logout` route
+- [x] Implement `logout` controller:
+  - [x] Extract session ID from refresh token or cookie
+  - [x] Revoke session in Redis
+  - [x] Clear cookies
+  - [x] Return success response
+- [x] Add `POST /api/auth/logout` route
 
 ### 2.17 Authentication - Refresh Token Feature
 
-- [ ] Implement `refreshToken` controller:
-  - [ ] Extract refresh token from cookie
-  - [ ] Verify refresh token
-  - [ ] Validate session exists in Redis
-  - [ ] Generate new access token
-  - [ ] Generate new refresh token
-  - [ ] Update session in Redis
-  - [ ] Set new cookies
-  - [ ] Return new access token
-- [ ] Add `POST /api/auth/refresh` route
+- [x] Implement `refreshToken` controller:
+  - [x] Extract refresh token from cookie
+  - [x] Verify refresh token
+  - [x] Validate session exists in Redis
+  - [x] Generate new access token
+  - [x] Generate new refresh token
+  - [x] Update session in Redis
+  - [x] Set new cookies
+  - [x] Return new access token
+- [x] Add `POST /api/auth/refresh` route
 
 ### 2.18 Authentication - Forgot Password Feature
 
-- [ ] Implement `forgotPassword` controller:
-  - [ ] Validate email with Zod
-  - [ ] Find user by email
-  - [ ] Generate password reset token (JWT or random)
-  - [ ] Store token in Redis with expiration (15 mins)
-  - [ ] Send password reset email
-  - [ ] Return success response (don't reveal if email exists)
-- [ ] Add `POST /api/auth/forgot-password` route
+- [x] Implement `forgotPassword` controller:
+  - [x] Validate email with Zod
+  - [x] Find user by email
+  - [x] Generate password reset token (JWT or random)
+  - [x] Store token in Redis with expiration (15 mins)
+  - [x] Send password reset email (Resend)
+  - [x] Return success response (don't reveal if email exists)
+- [x] Add `POST /api/auth/forgot-password` route
 
 ### 2.19 Authentication - Reset Password Feature
 
-- [ ] Implement `resetPassword` controller:
-  - [ ] Validate token and new password with Zod
-  - [ ] Verify token from Redis
-  - [ ] Find user
-  - [ ] Hash new password
-  - [ ] Update user password
-  - [ ] Update passwordChangedAt timestamp
-  - [ ] Revoke all user sessions
-  - [ ] Delete token from Redis
-  - [ ] Send password changed confirmation email
-  - [ ] Return success response
-- [ ] Add `POST /api/auth/reset-password` route
+- [x] Implement `resetPassword` controller:
+  - [x] Validate token and new password with Zod
+  - [x] Verify token from Redis
+  - [x] Find user
+  - [x] Hash new password
+  - [x] Update user password
+  - [x] Update passwordChangedAt timestamp
+  - [x] Revoke all user sessions
+  - [x] Delete token from Redis
+  - [x] Send password changed confirmation email (Resend)
+  - [x] Return success response
+- [x] Add `POST /api/auth/reset-password` route
 
 ### 2.20 Authentication - Change Password Feature (Authenticated)
 
-- [ ] Implement `changePassword` controller:
-  - [ ] Validate old and new passwords with Zod
-  - [ ] Verify old password
-  - [ ] Check new password is different
-  - [ ] Hash new password
-  - [ ] Update user password
-  - [ ] Update passwordChangedAt timestamp
-  - [ ] Revoke all other sessions (keep current)
-  - [ ] Send password changed confirmation email
-  - [ ] Return success response
-- [ ] Add `POST /api/auth/change-password` route (protected)
+- [x] Implement `changePassword` controller:
+  - [x] Validate old and new passwords with Zod
+  - [x] Verify old password
+  - [x] Check new password is different
+  - [x] Hash new password
+  - [x] Update user password
+  - [x] Update passwordChangedAt timestamp
+  - [x] Revoke all other sessions (keep current)
+  - [x] Send password changed confirmation email
+  - [x] Return success response
+- [x] Add `POST /api/auth/change-password` route (protected)
 
 ---
 
@@ -490,11 +498,11 @@ This roadmap outlines all steps for building a production-ready MERN stack authe
 
 ### 2.26 Middleware - CSRF Protection
 
-- [ ] Install csurf or csrf-csrf
-- [ ] Create CSRF middleware
-- [ ] Generate CSRF tokens
-- [ ] Add CSRF token endpoint `GET /api/auth/csrf-token`
-- [ ] Validate CSRF tokens on state-changing requests
+- [x] Install csurf or csrf-csrf (implemented custom Redis-backed CSRF middleware)
+- [x] Create CSRF middleware
+- [x] Generate CSRF tokens
+- [x] Add CSRF token endpoint `GET /api/auth/csrf-token`
+- [x] Validate CSRF tokens on state-changing requests (with rotation and block threshold)
 
 ### 2.27 Middleware - Security Headers & CSP
 
@@ -522,6 +530,13 @@ This roadmap outlines all steps for building a production-ready MERN stack authe
 - [ ] Create IP tracking utilities
 - [ ] Create request fingerprinting middleware
 - [ ] Verify all middleware integrates with asyncHandler pattern
+
+### 2.29.1 Internationalization (Backend i18n)
+
+- [ ] Implement backend i18n with locales `en` and `fr` (e.g., central message catalog and locale resolver)
+- [ ] Add middleware to resolve locale (Accept-Language header → fallback `en`)
+- [ ] Provide translated strings for errors, validation messages (Zod), and API responses
+- [ ] Refactor existing messages to use the i18n system (errors, validators, controllers)
 
 ### 2.30 User Profile Management
 
@@ -625,11 +640,11 @@ This roadmap outlines all steps for building a production-ready MERN stack authe
 
 ### 2.34 Activity Tracking
 
-- [ ] Create activity tracking middleware
-- [ ] Update lastActivity timestamp on each request
-- [ ] Track IP addresses in ipHistory array
-- [ ] Implement `getIpHistory` endpoint for users to see their login history
-- [ ] Add `GET /api/users/activity/ip-history` route (protected)
+- [x] Create activity tracking middleware
+- [x] Update lastActivity timestamp on each request
+- [x] Track IP addresses in ipHistory array
+- [x] Implement `getIpHistory` endpoint for users to see their login history
+- [x] Add `GET /api/users/activity/ip-history` route (protected)
 
 ### 2.35 Redis Caching Strategy
 
@@ -670,10 +685,10 @@ This roadmap outlines all steps for building a production-ready MERN stack authe
 
 - [ ] Install Jest and ts-jest
 - [ ] Install supertest for API testing
-- [ ] Create test configuration
-- [ ] Write unit tests for utilities
-- [ ] Write integration tests for auth endpoints
-- [ ] Add test npm scripts
+- [x] Create test configuration (Vitest added)
+- [x] Write unit tests for utilities (CSRF middleware covered)
+- [x] Write integration tests for auth endpoints
+- [x] Add test npm scripts (Vitest)
 - [ ] Setup test database
 
 ### 2.39 Docker Setup

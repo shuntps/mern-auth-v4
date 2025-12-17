@@ -2,7 +2,7 @@ import eslint from '@eslint/js';
 import prettierConfig from 'eslint-config-prettier';
 import tseslint from 'typescript-eslint';
 
-export default tseslint.config(
+export default [
   eslint.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   ...tseslint.configs.stylisticTypeChecked,
@@ -10,7 +10,7 @@ export default tseslint.config(
   {
     languageOptions: {
       parserOptions: {
-        project: './tsconfig.json',
+        project: './tsconfig.eslint.json',
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -32,5 +32,5 @@ export default tseslint.config(
   },
   {
     ignores: ['dist', 'node_modules', 'build', 'coverage', '*.config.js', '*.config.mjs'],
-  }
-);
+  },
+];

@@ -48,6 +48,9 @@ export const env = {
   emailUser: process.env.EMAIL_USER ?? '',
   emailPassword: process.env.EMAIL_PASSWORD ?? '',
   emailFrom: process.env.EMAIL_FROM ?? 'MERN Auth <noreply@mernauth.com>',
+  resendApiKey: process.env.RESEND_API_KEY ?? '',
+  resendFromEmail: process.env.RESEND_FROM_EMAIL ?? '',
+  resendFromName: process.env.RESEND_FROM_NAME ?? 'MERN Auth',
   emailVerificationTtl: parseInt(process.env.EMAIL_VERIFICATION_TTL ?? '86400', 10),
   passwordResetTtl: parseInt(process.env.PASSWORD_RESET_TTL ?? '900', 10),
 
@@ -61,6 +64,7 @@ export const env = {
   authRateLimitMaxRequests: parseInt(process.env.AUTH_RATE_LIMIT_MAX_REQUESTS ?? '5', 10),
   loginRateLimitWindowMs: parseInt(process.env.LOGIN_RATE_LIMIT_WINDOW_MS ?? '900000', 10),
   loginRateLimitMaxAttempts: parseInt(process.env.LOGIN_RATE_LIMIT_MAX_ATTEMPTS ?? '5', 10),
+  loginAttemptTtl: parseInt(process.env.LOGIN_ATTEMPT_TTL ?? '900', 10),
   passwordResetRateLimitWindowMs: parseInt(
     process.env.PASSWORD_RESET_RATE_LIMIT_WINDOW_MS ?? '3600000',
     10
@@ -73,6 +77,13 @@ export const env = {
   // Security
   bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS ?? '10', 10),
   csrfTokenLength: parseInt(process.env.CSRF_TOKEN_LENGTH ?? '32', 10),
+  csrfTokenTtl: parseInt(
+    process.env.CSRF_TOKEN_TTL ??
+      Math.floor(parseInt(process.env.COOKIE_MAX_AGE ?? '604800000', 10) / 1000).toString(),
+    10
+  ),
+  csrfRotateOnVerify: process.env.CSRF_ROTATE_ON_VERIFY !== 'false',
+  csrfFailureThreshold: parseInt(process.env.CSRF_FAILURE_THRESHOLD ?? '10', 10),
   sessionIdLength: parseInt(process.env.SESSION_ID_LENGTH ?? '32', 10),
 
   // File Uploads

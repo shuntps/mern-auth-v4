@@ -1,25 +1,36 @@
 export class AppError extends Error {
   public readonly statusCode: number;
   public readonly isOperational: boolean;
+  public readonly code?: string;
   public readonly details?: unknown; // optional for validation info
 
-  constructor(message: string, statusCode = 500, isOperational = true, details?: unknown) {
+  constructor(
+    message: string,
+    statusCode = 500,
+    isOperational = true,
+    details?: unknown,
+    code?: string
+  ) {
     super(message);
     this.statusCode = statusCode;
     this.isOperational = isOperational;
     this.details = details;
+    this.code = code;
 
     Error.captureStackTrace(this, this.constructor);
     Object.setPrototypeOf(this, AppError.prototype);
   }
 
-  toJSON(): { status: string; message: string; details?: unknown } {
-    const response: { status: string; message: string; details?: unknown } = {
+  toJSON(): { status: string; message: string; details?: unknown; code?: string } {
+    const response: { status: string; message: string; details?: unknown; code?: string } = {
       status: 'error',
       message: this.message,
     };
     if (this.details !== undefined) {
       response.details = this.details;
+    }
+    if (this.code) {
+      response.code = this.code;
     }
     return response;
   }
@@ -37,6 +48,22 @@ export class AuthenticationError extends AppError {
   constructor(message = 'Authentication failed') {
     super(message, 401);
     Object.setPrototypeOf(this, AuthenticationError.prototype);
+  }
+}
+
+export class CsrfBlockedError extends AppError {
+  constructor(message = 'errors.csrf.blocked', retryAfterSeconds?: number) {
+    super(
+      message,
+      429,
+      true,
+      {
+        code: 'CSRF_BLOCKED',
+        retryAfterSeconds,
+      },
+      'CSRF_BLOCKED'
+    );
+    Object.setPrototypeOf(this, CsrfBlockedError.prototype);
   }
 }
 

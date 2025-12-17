@@ -1,138 +1,41 @@
-# MERN Auth v4 - AI Agent Instructions
+# MERN Auth v4 — AI Agent Instructions
 
-## Architecture Overview
+## Context & Architecture
 
-**Dual-repo MERN stack**: `backend/` (Express + TypeScript + MongoDB + Redis) | `frontend/` (React + Vite + TypeScript + TailwindCSS)
+- Express 5 + TypeScript backend with React 19 + Vite frontend; roadmap-driven (see ROADMAP.md). Backend is current focus.
+- Layering: routes (declarative) → validators (Zod) → controllers (wrapped with asyncHandler) → services. Dual JWT (15m access, 7d refresh) + Redis sessions; centralized errors.
+- HTTPS enforced in production with proxy trust; CSRF double-submit on auth routes; rate limiting via Redis.
 
-**Core Patterns:**
+## Non-Negotiables
 
-- Dual-token JWT (access 15m, refresh 7d) + Redis sessions
-- Service-controller separation (controllers=HTTP, services=logic)
-- TypeScript strict mode, zero `any` types, explicit return types
-- Follow ROADMAP.md sequentially, zero lint errors enforced
+- Strict TS (no any); use path aliases from backend/tsconfig (`@config/*`, `@controllers/*`, `@services/*`, `@models/*`, `@routes/*`, `@middleware/*`, `@utils/*`, `@custom-types/*`, `@validators/*`).
+- Read config only from backend/src/config/env.ts (validateEnv before start); never use process.env elsewhere.
+- Throw AppError variants (backend/src/utils/errors.ts); controllers exported via asyncHandler (backend/src/utils/asyncHandler.ts). Services stay framework-agnostic.
+- Routes stay declarative: middleware (rate limiters, CSRF, validate) then controller; do not wrap controllers in route files.
 
-## Development Rules (NON-NEGOTIABLE)
+## Core Backend Pieces
 
-**TypeScript:** Never use `any`, strict mode enabled, explicit return types required
+- Bootstrap: backend/src/index.ts sets trust proxy, helmet/cors/compression/body parsers, cookieParser, touchLastActivity middleware, general rate limiter, mounts routes under env.apiBasePath, adds /health, notFoundHandler → errorHandler. Seeds roles at startup.
+- Env + connections: backend/src/config/env.ts, database.ts (Mongo connect/shutdown), redis.ts (ioredis client with retry), logger.ts (Winston to logs/).
+- Models: backend/src/models/user.model.ts (default role assignment, bcrypt hashing on save, comparePassword/changedPasswordAfter, ipHistory max 10, lastActivity/lastLogin), backend/src/models/role.model.ts (seed roles). Types in backend/src/types/user.types.ts.
+- Auth services: backend/src/services/token.service.ts (typed JWT), session.service.ts (Redis sessions session:{userId}:{sessionId}, scan+mget for listing), auth.service.ts (register/login/refresh/logout/forgot/reset/change). Reset tokens are hashed (sha256) before storing in Redis; password change revokes all sessions; reset also revokes all sessions.
+- Middleware: rateLimiter.middleware.ts (Redis store via redisClient.call with prefixes), csrf.middleware.ts (issue/verify token), activity.middleware.ts (best-effort lastActivity/ipHistory update once/min using access token), errorHandler.ts.
+- Routes/controllers/validators: auth.routes.ts wires CSRF + rate limiters + Zod validators from auth.validators.ts; controllers in auth.controller.ts set/clear HTTP-only cookies (secure/sameSite from env) and stay thin.
 
-**Dependencies:** Latest versions only (Dec 2025), npm only (never yarn/pnpm)
+## Workflows & Tooling
 
-- Backend: Express 5.2.1+, Mongoose 9.0.1+, ioredis 5.8.2+
-- Frontend: React 19.2.3+, Vite 7.2.7+, TailwindCSS 4.1.18+, Zustand 5.0.9+
+- Backend scripts: npm run dev (tsx watch), npm run build (tsc), npm start (run dist), npm run lint, npm run format, npm run format:check. Husky + lint-staged enforce lint --max-warnings=0 and format:check on staged TS.
+- Logs written to logs/ (combined/error/exception) via logger.ts. Health check at /health returns Mongo/Redis status; keep it cheap and unauthenticated.
 
-**Workflow:** Follow ROADMAP.md → implement → ESLint zero errors → test → mark complete. No code duplication, reuse existing patterns.
+## Patterns & Gotchas
 
-## Production-Critical Express Patterns (MANDATORY)
+- New endpoint: add types → Zod schema → service (throws AppError) → controller with asyncHandler → route with validator + rate limiter + CSRF as needed.
+- Use env.apiBasePath when mounting routes; keep cookies HTTP-only/secure/sameSite from env. Do not read process.env directly.
+- Redis session TTL from env.redisSessionTtl; revoke or rotate refresh tokens via session.service helpers. Refresh compares stored token; mismatches revoke session.
+- IP history keeps latest 10 and updates in login and activity middleware (throttled). Password hashing runs only when password is set/modified; password field is select:false.
+- Avoid creating duplicate Mongo indexes—unique constraints already on schema fields; secondary indexes are defined explicitly in models.
 
-### 1. Centralized Error Handler
+## Roadmap Snapshot
 
-**ALL errors** flow through `/src/middleware/errorHandler.ts` (registered last). Custom error classes: AppError (base), ValidationError (400), AuthenticationError (401), AuthorizationError (403), NotFoundError (404), ConflictError (409). Controllers throw errors, never send responses.
-
-### 2. AsyncHandler Wrapper (Controller-Level ONLY)
-
-```typescript
-// ✅ CORRECT - wrap at controller export
-export const register = asyncHandler(async (req, res, next) => {
-  /* throw errors */
-});
-
-// ✅ CORRECT - routes stay declarative
-router.post(
-  "/register",
-  authLimiter,
-  validate(schema),
-  authController.register
-);
-
-// ❌ WRONG - never wrap at route level
-router.post("/register", asyncHandler(authController.register));
-```
-
-### 3. Redis-Based Rate Limiting
-
-**RedisStore sendCommand pattern for ioredis:**
-
-```typescript
-new RedisStore({
-  sendCommand: (command: string, ...args: string[]): Promise<RedisReply> =>
-    redisClient.call(command, ...args) as Promise<RedisReply>,
-  prefix: "rl:endpoint:",
-});
-```
-
-All limits use env variables: `env.rateLimitWindowMs`, `env.authRateLimitMaxRequests`, etc.
-
-## Backend Structure & Patterns
-
-**Folders:** `/config` (DB, Redis, env, logger), `/controllers` (HTTP handlers), `/services` (business logic), `/models` (Mongoose schemas), `/routes`, `/middleware`, `/utils`, `/types`, `/validators` (Zod schemas)
-
-**Auth Flow:** Register → Zod validate → bcrypt hash → save → email | Login → validate → verify → Redis session → JWT pair → HTTP-only cookies | Refresh → verify token → check Redis → new access token | Logout → revoke Redis session
-
-**Redis Keys:** `session:{userId}:{sessionId}` (metadata: IP, user agent, timestamps)
-
-**Validation:** Zod in `/validators/*`, password policy: 8+ chars, 1 upper, 1 lower, 1 number, 1 special
-
-**Security:** Helmet + CSP, Redis rate limiting, CSRF tokens, HTTP-only cookies, IP tracking
-
-## Frontend Structure & Patterns
-
-**Folders:** `/components` (reusable UI), `/pages`, `/layouts`, `/store` (Zustand), `/services` (Axios), `/hooks`, `/types`, `/i18n` (en,fr), `/config`
-
-**State:** authStore (user, tokens, auth methods) | uiStore (theme, locale, sidebar, notifications) - persisted to localStorage
-
-**Components:** Variants (Button: primary/secondary/outline/ghost), React Hook Form + Zod, dark mode via Tailwind `dark:` classes
-
-**Routes:** `<ProtectedRoute>` (auth required), `<RoleBasedRoute roles={['admin']}>` (role-based), Axios interceptor auto-refreshes tokens on 401
-
-## Development Workflows
-
-**Backend:** `npm run dev` (tsx hot reload), `npm run lint`, `npm run format`
-**Frontend:** `npm run dev` (Vite), `npm run lint`, `npm run format`
-**Docker:** `docker-compose up` (backend + MongoDB + Redis)
-
-**Route Checklist:** Zod schema → service logic → controller (wrap asyncHandler) → apply rate limiter + validation → test errors
-
-## Integration Points
-
-**Backend ↔ Frontend:** CORS via `FRONTEND_URL` env, HTTP-only cookies auto-sent, CSRF token from `GET /api/auth/csrf-token`
-
-**Backend ↔ Databases:** Mongoose connection pooling, ioredis with retry logic (`/config/redis.ts`), Redis for sessions/rate limiting/caching (TTL = refresh token expiry)
-
-**External Services:** Nodemailer (emails), Passport.js + Google OAuth, Speakeasy + QRCode (2FA)
-
-## Common Pitfalls
-
-❌ AsyncHandler at route level | Catching errors in controllers | Skipping rate limiting | Using `any` | Hardcoding secrets | Route-level controller wrapping | Skipping Zod validation | Code duplication | Skipping ROADMAP sequence
-
-## Quick Reference
-
-**Roles:** user, admin, super-admin | **JWT:** 15m access, 7d refresh | **Rate Limits:** 100/15min general, 5/15min auth, 3/hour password reset | **Password:** bcrypt 10 rounds, 8+ chars policy | **Redis:** `session:{userId}:{sessionId}` | **Uploads:** Multer, Sharp, 5MB max | **i18n:** en, fr
-
-## Default Config (.env)
-
-**JWT:** `JWT_ACCESS_EXPIRES_IN=15m`, `JWT_REFRESH_EXPIRES_IN=7d`
-**Redis TTL:** Sessions 7d, email verification 24h, password reset 15m, rate limit 15m, cache 1h
-**MongoDB:** Pool 10 (dev), 50 (prod), timeout 30s, auto-index dev only
-**Rate Limits:** General 100/15m, auth 5/15m, login 5/15m, password reset 3/1h
-**Uploads:** 5MB max, jpg/jpeg/png/webp, Sharp resize to 500x500px
-**Security:** bcrypt 10 rounds, cookie 7d, CSRF 32 bytes, session ID 32 bytes
-
-## TypeScript Path Aliases
-
-`@config/*`, `@controllers/*`, `@services/*`, `@models/*`, `@routes/*`, `@middleware/*`, `@utils/*`, `@types/*`, `@validators/*` → `src/{folder}/*`
-
-✅ `import { env } from '@config/env'` | ❌ `import { env } from '../config/env'`
-
-## Current Project Status
-
-**Phase 2.7.1 COMPLETE** ✅ - Production-Critical Middleware Foundation:
-
-- Custom error classes: AppError, ValidationError, AuthenticationError, AuthorizationError, NotFoundError, ConflictError
-- AsyncHandler wrapper with controller-level documentation
-- Redis-based rate limiters: generalLimiter, authLimiter, loginLimiter, passwordResetLimiter
-- Centralized error handler with operational/programming error distinction
-- All rate limiters use environment variables from `.env`
-- Zero ESLint errors enforced
-
-**NEXT: Phase 2.8** - User Model & Schema
-Check [ROADMAP.md](../ROADMAP.md) for detailed implementation progress. All tasks must be completed in order, with checkboxes marked only when fully tested and working.
+- Completed: errors/async/rate limiting, role/user models + seeding, Husky/lint-staged, CSRF + HTTPS enforcement, hashed password-reset tokens, last-activity middleware.
+- In progress/next: Phase 2.9 auth core/i18n expansion (en/fr locales, translated errors/responses) and email delivery integration for reset/verify.

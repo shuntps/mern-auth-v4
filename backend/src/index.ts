@@ -4,18 +4,26 @@ import cors from 'cors';
 import compression from 'compression';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
-import { env, validateEnv, isDevelopment } from '@config/env';
+import { env, validateEnv, isDevelopment, isProduction, isTest } from '@config/env';
 import { connectDatabase, getDatabaseStatus } from '@config/database';
 import { getRedisStatus } from '@config/redis';
 import logger from '@config/logger';
 import { errorHandler, notFoundHandler } from '@middleware/errorHandler';
+import { touchLastActivity } from '@middleware/activity.middleware';
 import { generalLimiter } from '@middleware/rateLimiter.middleware';
+import routes from '@routes/index';
+import { seedDefaultRoles } from '@models/role.model';
 
 /**
  * Create and configure Express application
  */
-const createApp = (): Express => {
+export const createApp = (): Express => {
   const app = express();
+
+  // Honor reverse proxy headers when deployed behind a proxy (HTTPS enforcement relies on this)
+  if (isProduction()) {
+    app.set('trust proxy', 1);
+  }
 
   // Security middleware
   app.use(
@@ -35,6 +43,28 @@ const createApp = (): Express => {
     })
   );
 
+  // Enforce HTTPS in production (expects `trust proxy` set when behind a proxy)
+  app.use((req, res, next) => {
+    if (!isProduction()) {
+      next();
+      return;
+    }
+
+    // Allow health checks and loopback hosts without HTTPS
+    const host = req.get('host') ?? '';
+    if (req.path === '/health' || host.includes('localhost') || host.startsWith('127.0.0.1')) {
+      next();
+      return;
+    }
+
+    const isSecure = req.secure || req.get('x-forwarded-proto') === 'https';
+    if (isSecure) {
+      next();
+      return;
+    }
+    return res.status(400).json({ status: 'fail', message: 'Use HTTPS' });
+  });
+
   // Compression middleware
   app.use(compression());
 
@@ -45,6 +75,9 @@ const createApp = (): Express => {
   // Cookie parser
   app.use(cookieParser());
 
+  // Update last activity for authenticated requests (best-effort)
+  app.use(touchLastActivity);
+
   // HTTP request logger
   if (isDevelopment()) {
     app.use(morgan('dev'));
@@ -54,6 +87,9 @@ const createApp = (): Express => {
 
   // Apply general rate limiter to all routes
   app.use(generalLimiter);
+
+  // API routes
+  app.use(env.apiBasePath, routes);
 
   // Health check endpoint
   app.get('/health', (_req: Request, res: Response) => {
@@ -99,6 +135,10 @@ const startServer = async (): Promise<void> => {
     // Connect to databases
     await connectDatabase();
 
+    // Seed default roles
+    await seedDefaultRoles();
+    logger.info('Default roles seeded');
+
     // Create Express app
     const app = createApp();
 
@@ -139,4 +179,6 @@ const startServer = async (): Promise<void> => {
 };
 
 // Start the server
-void startServer();
+if (!isTest()) {
+  void startServer();
+}
