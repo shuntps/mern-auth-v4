@@ -71,7 +71,7 @@ This roadmap outlines all steps for building a production-ready MERN stack authe
 - [x] Install compression for response compression
 - [x] Install morgan for HTTP request logging
 - [x] Install winston for application logging
-- [x] Install express-async-errors for async error handling (Not needed - Express 5 handles async natively)
+- [x] Install express-async-errors (Not needed - using custom asyncHandler wrapper for better control)
 
 ### 2.3 Development Tools Setup
 
@@ -129,13 +129,85 @@ This roadmap outlines all steps for building a production-ready MERN stack authe
 - [x] Apply body parsers (json, urlencoded)
 - [x] Apply compression middleware
 - [x] Apply Morgan logging
-- [x] Setup global error handler
+- [x] Setup global error handler (basic structure)
 - [x] Setup 404 handler
 - [x] Connect to MongoDB
 - [x] Connect to Redis
 - [x] Start HTTP server
 - [x] Implement graceful shutdown
 - [x] Add health check endpoint
+
+### 2.7.1 Production-Critical Middleware Foundation (MANDATORY PREREQUISITE)
+
+**⚠️ BLOCKING - Must complete BEFORE any route/controller implementation**
+
+#### Centralized Error Handler
+
+- [x] Create custom error classes in `/src/utils/errors.ts`:
+  - [x] `AppError` (base class with statusCode, message, isOperational)
+  - [x] `ValidationError` extends AppError (400)
+  - [x] `AuthenticationError` extends AppError (401)
+  - [x] `AuthorizationError` extends AppError (403)
+  - [x] `NotFoundError` extends AppError (404)
+  - [x] `ConflictError` extends AppError (409)
+- [x] Create centralized error handler in `/src/middleware/errorHandler.ts`:
+  - [x] Handle operational errors (AppError instances)
+  - [x] Handle programming errors (unexpected errors)
+  - [x] Log all errors with Winston (include request context)
+  - [x] Format consistent JSON error responses
+  - [x] Hide stack traces in production
+  - [x] Distinguish trusted vs untrusted errors
+  - [x] Send appropriate HTTP status codes
+- [x] Register error handler as LAST middleware in Express app
+- [x] Test error handler with sample errors
+
+#### AsyncHandler Wrapper Utility
+
+- [x] Create `asyncHandler` utility in `/src/utils/asyncHandler.ts`:
+  - [x] Wrap async functions to catch promise rejections
+  - [x] Forward errors to Express error handler via `next()`
+  - [x] Add TypeScript types for Request, Response, NextFunction
+  - [x] Include JSDoc documentation
+- [x] Create sample controller with asyncHandler wrapper at export
+- [x] Create sample route file demonstrating declarative pattern (no asyncHandler wrapping)
+- [x] Document **controller-level wrapping pattern** in code comments
+- [x] Document that routes MUST remain declarative (never wrap controllers)
+
+#### Redis-Based Rate Limiting
+
+- [x] Install `express-rate-limit` and `rate-limit-redis`
+- [x] Create rate limiter configuration in `/src/middleware/rateLimiter.middleware.ts`:
+  - [x] Configure Redis store (use existing ioredis client)
+  - [x] Create `generalLimiter` (100 req / 15 min)
+  - [x] Create `authLimiter` (5 req / 15 min)
+  - [x] Create `loginLimiter` (5 attempts / 15 min)
+  - [x] Create `passwordResetLimiter` (3 req / 1 hour)
+  - [x] Include `Retry-After` header in responses
+  - [x] Standardized error messages on limit exceeded
+  - [x] Log rate limit violations
+- [x] Test rate limiters with multiple requests
+- [x] Verify Redis stores rate limit data correctly
+
+**🚫 HARD REQUIREMENT: No route handlers can be created until:**
+
+1. All error classes are defined
+2. Centralized error handler is implemented and tested
+3. asyncHandler wrapper utility is created with sample controller demonstrating controller-level wrapping
+4. All rate limiters are configured and tested
+5. Pattern examples are documented in code showing:
+   - Controllers wrapped with asyncHandler at export
+   - Routes remain declarative (no controller wrapping in route files)
+
+---
+
+**🎯 MILESTONE 2: Production-Ready Middleware Foundation Complete**
+
+- Centralized error handling enforced
+- AsyncHandler pattern ready for all routes
+- Redis-based rate limiting configured
+- Ready for secure route implementation
+
+---
 
 ### 2.8 User Model & Schema
 
@@ -207,17 +279,29 @@ This roadmap outlines all steps for building a production-ready MERN stack authe
 
 ### 2.13 Authentication - Register Feature
 
+**Prerequisites: Phase 2.7.1 MUST be complete (error handler, asyncHandler, rate limiters)**
+
 - [ ] Create auth controller in `/src/controllers/auth.controller.ts`
 - [ ] Implement `register` controller:
+  - [ ] **Wrap controller with `asyncHandler` at export** (controller-level)
   - [ ] Validate input with Zod
-  - [ ] Check if user exists
+  - [ ] Check if user exists (throw ConflictError if exists)
   - [ ] Hash password with bcrypt
   - [ ] Create user in MongoDB
   - [ ] Generate email verification token
   - [ ] Send verification email
   - [ ] Return success response (no tokens yet)
+  - [ ] Throw errors on failure (never catch and respond)
 - [ ] Create auth routes in `/src/routes/auth.routes.ts`
-- [ ] Add `POST /api/auth/register` route
+- [ ] Add `POST /api/auth/register` route (declarative pattern):
+  - [ ] Apply `authLimiter` rate limiting
+  - [ ] Apply Zod validation middleware
+  - [ ] Reference `authController.register` (already wrapped at controller level)
+  - [ ] **NEVER wrap controller in route file** - route must be declarative
+- [ ] Test register endpoint
+- [ ] Verify errors flow through centralized error handler
+- [ ] Verify rate limiting works
+- [ ] Verify route file remains clean and declarative
 
 ### 2.14 Authentication - Email Verification
 
@@ -420,25 +504,24 @@ This roadmap outlines all steps for building a production-ready MERN stack authe
 - [ ] Disable X-Powered-By header
 - [ ] Configure trusted domains
 
-### 2.28 Middleware - Input Validation
+### 2.28 Middleware - Input Validation & Sanitization
 
-- [ ] Create `validate.middleware.ts`
-- [ ] Implement generic validation middleware using Zod
-- [ ] Apply to all routes with request bodies
+**Note: Error handling and rate limiting were completed in Phase 2.7.1 (mandatory prerequisite)**
 
-### 2.29 Middleware - Error Handling
+- [ ] Create `validate.middleware.ts` in `/src/middleware/`
+- [ ] Implement generic Zod validation middleware:
+  - [ ] Accept Zod schema as parameter
+  - [ ] Validate req.body, req.params, req.query
+  - [ ] Throw ValidationError on validation failure
+  - [ ] Let centralized error handler format response
+- [ ] Create request sanitization middleware (XSS protection)
+- [ ] Create detailed request logging middleware
 
-- [ ] Create custom error classes in `/src/utils/errors.ts`:
-  - [ ] AppError (base class)
-  - [ ] ValidationError
-  - [ ] AuthenticationError
-  - [ ] AuthorizationError
-  - [ ] NotFoundError
-- [ ] Create global error handler in `/src/middleware/errorHandler.ts`
-- [ ] Handle different error types
-- [ ] Log errors with Winston
-- [ ] Return appropriate HTTP status codes
-- [ ] Don't leak sensitive information in production
+### 2.29 Middleware - Additional Security Utilities
+
+- [ ] Create IP tracking utilities
+- [ ] Create request fingerprinting middleware
+- [ ] Verify all middleware integrates with asyncHandler pattern
 
 ### 2.30 User Profile Management
 
@@ -1496,8 +1579,8 @@ This roadmap outlines all steps for building a production-ready MERN stack authe
 - compression
 - morgan
 - winston
-- express-rate-limit
-- rate-limit-redis
+- express-rate-limit (REQUIRED - Redis-based rate limiting)
+- rate-limit-redis (REQUIRED - Redis store for distributed rate limiting)
 - cookie-parser
 - nodemailer
 - multer
@@ -1550,6 +1633,20 @@ This roadmap outlines all steps for building a production-ready MERN stack authe
 - Maintain zero lint errors throughout development
 - Follow 2025 best practices and latest dependency versions
 - Prioritize security, performance, and user experience
+
+**⚠️ MANDATORY PRODUCTION PATTERNS (NON-NEGOTIABLE):**
+
+1. **Centralized Error Handler** - All errors MUST flow through `/src/middleware/errorHandler.ts`
+2. **AsyncHandler Wrapper (Controller-Level ONLY)** - ALL async controllers MUST be wrapped with `asyncHandler` at export. Routes MUST remain declarative and NEVER wrap controllers.
+3. **Redis-Based Rate Limiting** - ALL endpoints MUST have rate limiting configured (no memory store)
+4. Phase 2.7.1 MUST be completed BEFORE any route/controller implementation (BLOCKING REQUIREMENT)
+
+**Controller-Level AsyncHandler Architecture (MANDATORY):**
+
+- ✅ CORRECT: `export const register = asyncHandler(async (req, res, next) => { ... });`
+- ✅ CORRECT: `router.post('/register', authLimiter, validate(schema), authController.register);`
+- ❌ WRONG: `router.post('/register', asyncHandler(authController.register));`
+- ❌ WRONG: Unwrapped async controller function
 
 ---
 

@@ -1,275 +1,138 @@
-# AI Coding Agent Instructions - MERN Auth v4 (Production 2025+)
+# MERN Auth v4 - AI Agent Instructions
 
-## Project Info
+## Architecture Overview
 
-Developer: Shunt
-GitHub Repo: https://github.com/shuntps/mern-auth-v4.git
+**Dual-repo MERN stack**: `backend/` (Express + TypeScript + MongoDB + Redis) | `frontend/` (React + Vite + TypeScript + TailwindCSS)
 
-## Project Architecture
+**Core Patterns:**
 
-This is a **production-ready MERN authentication system** split into two independent projects:
+- Dual-token JWT (access 15m, refresh 7d) + Redis sessions
+- Service-controller separation (controllers=HTTP, services=logic)
+- TypeScript strict mode, zero `any` types, explicit return types
+- Follow ROADMAP.md sequentially, zero lint errors enforced
 
-- `backend/` - Node.js + Express + TypeScript + MongoDB + Redis + Role-Based Access Control (RBAC)
-- `frontend/` - React + Vite + TypeScript + TailwindCSS + Role-Based Access Control (RBAC)
+## Development Rules (NON-NEGOTIABLE)
 
-**Key Architectural Decisions:**
+**TypeScript:** Never use `any`, strict mode enabled, explicit return types required
 
-- **Dual-token auth**: JWT access tokens (short-lived) + refresh tokens (long-lived, stored in Redis sessions)
-- **Redis-first sessions**: All session management, rate limiting, and caching use Redis (ioredis client)
-- **Service-controller pattern**: Controllers handle HTTP, services contain business logic
-- **Strict separation**: Frontend and backend are completely independent with separate package.json files
+**Dependencies:** Latest versions only (Dec 2025), npm only (never yarn/pnpm)
 
-## Critical Development Rules
+- Backend: Express 5.2.1+, Mongoose 9.0.1+, ioredis 5.8.2+
+- Frontend: React 19.2.3+, Vite 7.2.7+, TailwindCSS 4.1.18+, Zustand 5.0.9+
 
-### TypeScript Strictness
+**Workflow:** Follow ROADMAP.md → implement → ESLint zero errors → test → mark complete. No code duplication, reuse existing patterns.
 
-- **NEVER use `any` type** - use `unknown`, generics, or proper types
-- Both projects use strict mode in tsconfig.json
-- All files must be strictly typed with explicit return types on functions
+## Production-Critical Express Patterns (MANDATORY)
 
-### Dependency Management
+### 1. Centralized Error Handler
 
-- **Always use latest versions** (as of December 2025)
-- Install with `npm install` or `npx create-*` (never yarn/pnpm)
-- Backend: Express v5.2.1+, Mongoose v9.0.1+, ioredis v5.8.2+
-- Frontend: React v19.2.3+, Vite v7.2.7+, TailwindCSS v4.1.18+, Zustand v5.0.9+
+**ALL errors** flow through `/src/middleware/errorHandler.ts` (registered last). Custom error classes: AppError (base), ValidationError (400), AuthenticationError (401), AuthorizationError (403), NotFoundError (404), ConflictError (409). Controllers throw errors, never send responses.
 
-### Progressive Development Approach
+### 2. AsyncHandler Wrapper (Controller-Level ONLY)
 
-1. **Follow ROADMAP.md sequentially** - each checkbox must be completed before moving forward
-2. **Zero lint errors at all stages** - run ESLint after every change
-3. **Roadmap-first**: Never implement code before the roadmap is approved
-4. **Test as you build**: Verify each feature works before marking task complete
-5. **No duplicates:** If similar code exists, do not create a new one—re-use or extend existing code
+```typescript
+// ✅ CORRECT - wrap at controller export
+export const register = asyncHandler(async (req, res, next) => {
+  /* throw errors */
+});
 
-## Backend Conventions
+// ✅ CORRECT - routes stay declarative
+router.post(
+  "/register",
+  authLimiter,
+  validate(schema),
+  authController.register
+);
 
-### Folder Structure (backend/src/)
-
-```
-/config     - Database, Redis, environment, logger configs
-/controllers - HTTP request handlers (thin, delegate to services)
-/services   - Business logic (token, session, email, etc.)
-/models     - Mongoose schemas with TypeScript interfaces
-/routes     - Express route definitions
-/middleware - Auth, validation, rate limiting, error handling
-/utils      - Helper functions, custom error classes
-/types      - TypeScript type definitions
-/validators - Zod validation schemas
+// ❌ WRONG - never wrap at route level
+router.post("/register", asyncHandler(authController.register));
 ```
 
-### Authentication Flow Pattern
+### 3. Redis-Based Rate Limiting
 
-1. **Register**: Validate with Zod → hash password (bcrypt) → save user → send verification email
-2. **Login**: Validate → verify password → create Redis session → generate JWT pair → set HTTP-only cookies
-3. **Refresh**: Verify refresh token → check Redis session → issue new access token → update session
-4. **Logout**: Revoke Redis session → clear cookies
+**RedisStore sendCommand pattern for ioredis:**
 
-**Redis Session Keys**: `session:{userId}:{sessionId}` with metadata (IP, user agent, timestamps)
-
-### Validation Pattern
-
-- Use Zod schemas in `/validators/*` for all input validation
-- Password policy: min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
-- Apply validation middleware to routes: `validate(authValidators.registerSchema)`
-
-### Error Handling
-
-- Custom error classes in `/utils/errors.ts`: AppError, ValidationError, AuthenticationError
-- Global error handler catches all errors and formats responses
-- Never expose stack traces or sensitive data in production
-
-### Security Stack
-
-- **Helmet** for security headers + CSP configuration
-- **express-rate-limit** with Redis store (5 login attempts per 15 min)
-- **CSRF protection** with token endpoint
-- **HTTP-only secure cookies** for refresh tokens
-- **IP tracking** in user.ipHistory array
-
-## Frontend Conventions
-
-### Folder Structure (frontend/src/)
-
-```
-/components - Reusable UI (Button, Input, Modal, etc.)
-/pages      - Page components (Login, Dashboard, Profile)
-/layouts    - Layout wrappers (MainLayout, DashboardLayout, AuthLayout)
-/store      - Zustand stores (authStore, uiStore)
-/services   - Axios API clients (authService, userService, adminService)
-/hooks      - Custom React hooks (useAuth, useTheme, useDebounce)
-/types      - TypeScript interfaces
-/i18n       - Translation files (en,fr)
-/config     - Environment and route configs
+```typescript
+new RedisStore({
+  sendCommand: (command: string, ...args: string[]): Promise<RedisReply> =>
+    redisClient.call(command, ...args) as Promise<RedisReply>,
+  prefix: "rl:endpoint:",
+});
 ```
 
-### State Management (Zustand)
+All limits use env variables: `env.rateLimitWindowMs`, `env.authRateLimitMaxRequests`, etc.
 
-- **authStore**: user, accessToken, isAuthenticated, login(), logout(), refreshToken()
-- **uiStore**: theme ('light'|'dark'), locale, sidebarOpen, notifications[]
-- Persist theme and locale to localStorage
+## Backend Structure & Patterns
 
-### Component Patterns
+**Folders:** `/config` (DB, Redis, env, logger), `/controllers` (HTTP handlers), `/services` (business logic), `/models` (Mongoose schemas), `/routes`, `/middleware`, `/utils`, `/types`, `/validators` (Zod schemas)
 
-- **Reusable components** in `/components` with variants (Button: primary, secondary, outline, ghost)
-- **Form components** integrate React Hook Form + Zod validation
-- **Layout components** handle Navbar, Sidebar, Footer composition
-- All components support dark mode via Tailwind's `dark:` classes
+**Auth Flow:** Register → Zod validate → bcrypt hash → save → email | Login → validate → verify → Redis session → JWT pair → HTTP-only cookies | Refresh → verify token → check Redis → new access token | Logout → revoke Redis session
 
-### TailwindCSS Setup
+**Redis Keys:** `session:{userId}:{sessionId}` (metadata: IP, user agent, timestamps)
 
-- Installed via official Vite guide: `npm install -D tailwindcss postcss autoprefixer`
-- Dark mode: `class` strategy (toggle via Zustand uiStore)
-- Custom theme in tailwind.config.js (colors, fonts)
+**Validation:** Zod in `/validators/*`, password policy: 8+ chars, 1 upper, 1 lower, 1 number, 1 special
 
-### Route Protection
+**Security:** Helmet + CSP, Redis rate limiting, CSRF tokens, HTTP-only cookies, IP tracking
 
-- `<ProtectedRoute>` - requires authentication, redirects to /login
-- `<RoleBasedRoute roles={['admin']}>` - checks user.role, redirects to /unauthorized
-- Token refresh happens automatically in Axios interceptor on 401 errors
+## Frontend Structure & Patterns
+
+**Folders:** `/components` (reusable UI), `/pages`, `/layouts`, `/store` (Zustand), `/services` (Axios), `/hooks`, `/types`, `/i18n` (en,fr), `/config`
+
+**State:** authStore (user, tokens, auth methods) | uiStore (theme, locale, sidebar, notifications) - persisted to localStorage
+
+**Components:** Variants (Button: primary/secondary/outline/ghost), React Hook Form + Zod, dark mode via Tailwind `dark:` classes
+
+**Routes:** `<ProtectedRoute>` (auth required), `<RoleBasedRoute roles={['admin']}>` (role-based), Axios interceptor auto-refreshes tokens on 401
 
 ## Development Workflows
 
-### Backend Development
+**Backend:** `npm run dev` (tsx hot reload), `npm run lint`, `npm run format`
+**Frontend:** `npm run dev` (Vite), `npm run lint`, `npm run format`
+**Docker:** `docker-compose up` (backend + MongoDB + Redis)
 
-```bash
-cd backend
-npm run dev        # Start with nodemon + ts-node
-npm run build      # Compile TypeScript to /dist
-npm run start      # Run compiled code (production)
-npm run lint       # ESLint check
-npm run format     # Prettier format
-```
-
-### Frontend Development
-
-```bash
-cd frontend
-npm run dev        # Vite dev server (hot reload)
-npm run build      # Production build
-npm run preview    # Preview production build
-npm run lint       # ESLint check
-npm run format     # Prettier format
-```
-
-### Docker Stack
-
-```bash
-docker-compose up  # Starts backend, MongoDB, Redis together
-```
+**Route Checklist:** Zod schema → service logic → controller (wrap asyncHandler) → apply rate limiter + validation → test errors
 
 ## Integration Points
 
-### Backend ↔ Frontend
+**Backend ↔ Frontend:** CORS via `FRONTEND_URL` env, HTTP-only cookies auto-sent, CSRF token from `GET /api/auth/csrf-token`
 
-- **API Base URL**: Frontend reads from `VITE_API_URL` env variable
-- **CORS**: Backend allows `FRONTEND_URL` from env variable
-- **Cookies**: Backend sets HTTP-only cookies, frontend sends automatically
-- **CSRF**: Frontend fetches token from `GET /api/auth/csrf-token`, includes in headers
+**Backend ↔ Databases:** Mongoose connection pooling, ioredis with retry logic (`/config/redis.ts`), Redis for sessions/rate limiting/caching (TTL = refresh token expiry)
 
-### Backend ↔ MongoDB
+**External Services:** Nodemailer (emails), Passport.js + Google OAuth, Speakeasy + QRCode (2FA)
 
-- Connection via Mongoose with connection pooling
-- Graceful shutdown closes connection
-- User model has pre-save hook for password hashing
+## Common Pitfalls
 
-### Backend ↔ Redis
-
-- ioredis client in `/config/redis.ts` with retry logic
-- Used for: sessions, rate limiting, caching, temporary tokens
-- All session operations use TTL (refresh token expiry)
-
-### External Services
-
-- **Nodemailer**: Email verification, password reset, notifications
-- **Google OAuth**: Passport.js with passport-google-oauth20 strategy
-- **Speakeasy + QRCode**: 2FA implementation
-
-## Code Quality Standards
-
-### Linting & Formatting
-
-- ESLint with TypeScript rules for both projects
-- Prettier with consistent config
-- Husky pre-commit hook runs lint-staged (lint + format)
-- **Zero lint errors required** before committing
-
-### Documentation
-
-- JSDoc comments on all exported functions with no examples
-- Inline comments for complex logic
-- Swagger/OpenAPI docs at `/api-docs` endpoint
-- README.md with setup instructions
-
-### Testing (when implemented)
-
-- Jest + supertest for backend integration tests
-- Test database separate from development
-- Focus on auth endpoints and critical flows
-
-## Common Pitfalls to Avoid
-
-1. **Don't mix auth approaches** - always use JWT + Redis sessions pattern
-2. **Don't skip Zod validation** - validate all user inputs
-3. **Don't forget rate limiting** - apply to all sensitive endpoints
-4. **Don't use `any`** - find the proper type or use `unknown`
-5. **Don't install deps globally** - always use project-local npm install
-6. **Don't skip ROADMAP** - follow sequential implementation
-7. **Don't forget dark mode** - test all UI components in both themes
-8. **Don't hardcode secrets** - always use environment variables
-9. **No duplicates:** If similar code exists, do not create a new one—re-use or extend existing code.
+❌ AsyncHandler at route level | Catching errors in controllers | Skipping rate limiting | Using `any` | Hardcoding secrets | Route-level controller wrapping | Skipping Zod validation | Code duplication | Skipping ROADMAP sequence
 
 ## Quick Reference
 
-**User Roles**: `user` (default), `admin`, `super-admin`
-**JWT Expiry**: Access 15min, Refresh 7days (configurable in env)
-**Rate Limits**: General 100/15min, Auth 5/15min, Password reset 3/hour
-**Password Hashing**: bcrypt with 10 rounds
-**Session Storage**: Redis with key pattern `session:{userId}:{sessionId}`
-**File Uploads**: Multer for avatars, Sharp for image processing (5MB limit)
-**Supported Languages**: English (en), French (fr)
+**Roles:** user, admin, super-admin | **JWT:** 15m access, 7d refresh | **Rate Limits:** 100/15min general, 5/15min auth, 3/hour password reset | **Password:** bcrypt 10 rounds, 8+ chars policy | **Redis:** `session:{userId}:{sessionId}` | **Uploads:** Multer, Sharp, 5MB max | **i18n:** en, fr
 
-## Default Configuration Values
+## Default Config (.env)
 
-### JWT Tokens
+**JWT:** `JWT_ACCESS_EXPIRES_IN=15m`, `JWT_REFRESH_EXPIRES_IN=7d`
+**Redis TTL:** Sessions 7d, email verification 24h, password reset 15m, rate limit 15m, cache 1h
+**MongoDB:** Pool 10 (dev), 50 (prod), timeout 30s, auto-index dev only
+**Rate Limits:** General 100/15m, auth 5/15m, login 5/15m, password reset 3/1h
+**Uploads:** 5MB max, jpg/jpeg/png/webp, Sharp resize to 500x500px
+**Security:** bcrypt 10 rounds, cookie 7d, CSRF 32 bytes, session ID 32 bytes
 
-- `JWT_ACCESS_EXPIRES_IN`: `15m` (15 minutes)
-- `JWT_REFRESH_EXPIRES_IN`: `7d` (7 days)
+## TypeScript Path Aliases
 
-### Redis TTL
+`@config/*`, `@controllers/*`, `@services/*`, `@models/*`, `@routes/*`, `@middleware/*`, `@utils/*`, `@types/*`, `@validators/*` → `src/{folder}/*`
 
-- Session: 7 days (matches refresh token expiry)
-- Email verification token: 24 hours
-- Password reset token: 15 minutes
-- Rate limit window: 15 minutes
-- Cache: 1 hour (configurable per resource)
-
-### MongoDB
-
-- Connection pool size: 10 (development), 50 (production)
-- Connection timeout: 30 seconds
-- Auto-index: enabled (development), disabled (production)
-
-### Rate Limits
-
-- General API: 100 requests / 15 minutes
-- Auth endpoints: 5 requests / 15 minutes
-- Login attempts: 5 attempts / 15 minutes
-- Password reset: 3 requests / 1 hour
-
-### File Uploads
-
-- Max avatar size: 5MB
-- Allowed formats: jpg, jpeg, png, webp
-- Image output: resized to 500x500px, optimized with Sharp
-
-### Security
-
-- bcrypt rounds: 10
-- Cookie max age: 7 days (matches refresh token)
-- CSRF token length: 32 bytes
-- Session ID length: 32 bytes (hex)
+✅ `import { env } from '@config/env'` | ❌ `import { env } from '../config/env'`
 
 ## Current Project Status
 
-Check ROADMAP.md for implementation progress. All tasks must be completed in order, with checkboxes marked only when fully tested and working.
+**Phase 2.7.1 COMPLETE** ✅ - Production-Critical Middleware Foundation:
+
+- Custom error classes: AppError, ValidationError, AuthenticationError, AuthorizationError, NotFoundError, ConflictError
+- AsyncHandler wrapper with controller-level documentation
+- Redis-based rate limiters: generalLimiter, authLimiter, loginLimiter, passwordResetLimiter
+- Centralized error handler with operational/programming error distinction
+- All rate limiters use environment variables from `.env`
+- Zero ESLint errors enforced
+
+**NEXT: Phase 2.8** - User Model & Schema
+Check [ROADMAP.md](../ROADMAP.md) for detailed implementation progress. All tasks must be completed in order, with checkboxes marked only when fully tested and working.
